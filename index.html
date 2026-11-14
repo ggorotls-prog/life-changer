@@ -93,6 +93,7 @@
   .addroom .form { display: none; width: 100%; gap: 8px; flex-direction: column; }
   .addroom.on .open { display: none; } .addroom.on .form { display: flex; }
   .addroom.s2 .go { background: var(--s2); }
+  .addroom .row2 { display: flex; gap: 6px; } .addroom .row2 input { flex: 1; min-width: 0; } .addroom .row2 select { width: 96px; }
   .newroom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .newroom .full { grid-column: 1 / -1; }
 
@@ -316,7 +317,7 @@ function renderHome() {
     const list = h.rooms.filter(r => r.stage === st);
     return `<div class="stage s${st}">${STAGE[st]}<small>${list.length}개</small></div><div class="grid">${list.map(cardHtml).join('')}
       <div class="addroom s${st}" data-st="${st}"><button class="open">${NEW[st][0]}<small>${NEW[st][1]}</small></button>
-        <div class="form"><input class="nName" placeholder="방 이름 (예: 새벽)">${adminSel(st)}<button class="go nGo">만들기</button></div></div></div>`;
+        <div class="form"><input class="nName" placeholder="방 이름 (예: 새벽)">${st === 1 ? `<div class="row2"><input class="nMe" placeholder="방에서 쓸 내 이름"><select class="nGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">주 ${n}회</option>`).join('')}</select></div><small class="sub">관리자도 참가자예요. 내 이름으로 첫 참가자가 돼요.</small>` : ''}${adminSel(st)}<button class="go nGo">만들기</button></div></div></div>`;
   }).join('');
   $('app').innerHTML = body;
   $('app').querySelector('.hero').insertAdjacentHTML('afterend', checkHtml(h.mine));
@@ -334,8 +335,10 @@ function renderHome() {
       const v = name.value.trim();
       if (!v) return showMsg('err', '방 이름을 적어 주세요.');
       go.disabled = true;
-      const adm = box.querySelector('.nAdmin');
-      call('lc_new_room', { p_stage: st, p_name: v, p_admin: adm ? adm.value : null }).then(r => {
+      const adm = box.querySelector('.nAdmin'), me = box.querySelector('.nMe'), goal = box.querySelector('.nGoal');
+      if (me && !me.value.trim()) { go.disabled = false; return showMsg('err', '관리자도 참가자예요. 방에서 쓸 내 이름을 적어 주세요.'); }
+      call('lc_new_room', { p_stage: st, p_name: v, p_admin: adm ? adm.value : null, p_my_name: me ? me.value.trim() : null, p_goal: goal ? +goal.value : 3 }).then(r => {
+        home = null;
         showMsg('ok', '「' + v + '」 방을 만들었어요.');
         location.hash = (r.stage === 1 ? 'room=' : 'group=') + r.id;
       }).catch(fail).finally(() => { go.disabled = false; });
