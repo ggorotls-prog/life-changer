@@ -278,12 +278,13 @@ function cardHtml(r) {
 function checkHtml(mine) {
   if (!mine || !mine.length) return `<div class="check"><h2>💪 오늘 운동 체크</h2><p class="sub">아직 참가 중인 방이 없어요. 방에 들어가 참가자 관리에서 내 이름의 「나예요」를 누르면 여기서 한 번에 체크돼요.</p></div>`;
   const all = mine.every(m => m.done);
-  const chip = m => `<span class="${m.done ? 'done' : m.need ? 'need' : ''}">${m.done ? '✅' : m.need ? '⏰' : '⬜'} ${m.stage}단계 ${esc(m.room)}</span>`;
-  const need = mine.some(m => !m.done && m.need);
+  const chip = m => `<span class="${m.done ? 'done' : m.need ? 'need' : ''}">${m.done ? '✅' : m.need ? '⏰' : '⬜'} ${esc(m.room)}${m.stage === 2 ? ' 조' : ' 방'}${m.done ? ' 끝' : m.need ? ' · 기상 먼저' : ''}</span>`;
+  const needs = mine.filter(m => !m.done && m.need).map(m => esc(m.room) + ' 조');
+  const need = needs.length;
   return `<div class="check${all ? ' alldone' : ''}"><h2>💪 오늘 운동 체크</h2>
     <div class="mine">${mine.map(chip).join('')}</div>
     <div class="row2"><input id="ckNote" placeholder="무슨 운동? (예: 걷기 30분)" maxlength="60"><button class="go" id="ckGo">${all ? '오늘 다 했어요 🎉' : '한 번에 체크!'}</button></div>
-    ${need ? '<p class="sub">⏰ 표시 조는 건강 기록에서 기상을 먼저 적어야 체크돼요.</p>' : ''}</div>`;
+    ${need ? `<p class="sub">⏰ ${needs.join(', ')}는 건강 기록 앱에서 오늘 「일어났어요」를 먼저 눌러야 운동이 체크돼요. (건강 기록은 기상 → 운동 순서)</p>` : ''}</div>`;
 }
 function bindCheck() {
   const go = $('ckGo');
