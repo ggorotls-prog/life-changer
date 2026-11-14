@@ -183,7 +183,8 @@
 // 아래 키는 공개용(publishable) 키라 화면에 있어도 된다.
 const SB_URL = 'https://trlnatdkebjvgiqneulv.supabase.co';
 const SB_KEY = 'sb_publishable_BqE1VCDg50oi9zCflCjMuw_wYF55CTj';
-const ROOM_URL = id => id === 'hero' ? 'https://ggorotls-prog.github.io/hero-workout/' : 'https://ggorotls-prog.github.io/life-changer/room/?r=' + id;
+// 1단계 방 참가자 주소는 모두 라이프 체인저 안(히어로도, 2026-11-14 룡). 옛 hero-workout 주소는 히어로 방으로 넘겨 준다.
+const ROOM_URL = id => 'https://ggorotls-prog.github.io/life-changer/room/?r=' + id;
 const LIFE_URL = 'https://ggorotls-prog.github.io/life-room/';
 const STAGE = { 1: '1단계 · 운동방', 2: '2단계 · 생활개선' };
 
