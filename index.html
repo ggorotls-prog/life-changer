@@ -193,7 +193,6 @@
     <img id="shot" alt="표 이미지">
     <p>휴대폰은 이미지를 꾹 눌러 저장하거나 공유하세요.</p>
     <div class="row">
-      <button class="share" id="share" style="display:none">카톡 등으로 보내기</button>
       <a id="dl" download="운동챌린지.png">내려받기</a>
       <button id="close">닫기</button>
     </div>
@@ -444,7 +443,7 @@ function renderRoom(w) {
       <div class="scroll"><div id="board">${tableHtml(w)}</div></div>${w.days[6] >= w.today ? '<div class="legend">남은 횟수<i style="background:#cc0000"></i>오늘 안 하면 못 채움<i style="background:var(--left)"></i>하루 여유<i style="background:var(--zero)"></i>달성</div>' : ''}
       <div id="nextBox">${nextHtml(w)}</div>
       <div class="bar" style="margin-top:10px;margin-bottom:0"><span class="foot">불러온 시각 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-        <button class="save" id="save">📷 표 이미지 만들기</button></div></div>
+        <button class="save" id="save">📤 카톡으로 표 보내기</button></div></div>
     <div class="card" id="manage"><h2>👥 참가자 관리</h2>
       <h3>➕ 새 참가자</h3><div class="add"><input type="text" id="newName" placeholder="이름"><select id="newGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">주 ${n}회</option>`).join('')}</select><button class="go" id="addBtn">추가</button></div>
       <h3>🌴 쉬는 중 ${off.length}명</h3>${off.map(m => row(m, 'back2', '재참가')).join('') || '<div class="who-row">없음</div>'}
@@ -460,6 +459,7 @@ function renderRoom(w) {
   $('prev').onclick = () => loadRoom(addDays(w.weekStart, -7));
   $('next').onclick = () => loadRoom(addDays(w.weekStart, 7));
   $('save').onclick = saveShot;
+  makeShot(); // 미리 만들어 두면 누르자마자 공유 창이 열린다
   $('manage').onclick = ev => {
     const b = ev.target.closest('button');
     if (!b) return;
@@ -489,26 +489,31 @@ function setMember(name, goal, active) {
 function loadRoom(weekStart) {
   return getWeek(weekStart || null).then(renderRoom);
 }
-let shotFile = null;
-function saveShot() {
-  const btn = $('save'); btn.disabled = true; btn.textContent = '만드는 중…';
+// 표 이미지는 카톡으로만 보낸다(2026-11-14 룡): 표를 그릴 때 이미지를 미리 만들어 두고,
+// 버튼을 누르면 바로 공유 창(카톡 고르기)을 연다. 공유가 안 되는 PC에서만 이미지 창(꾹 눌러 저장)을 띄운다.
+let shotFile = null, shotUrl = '', shotJob = null;
+function makeShot() {
+  shotFile = null;
   $('shotArea').innerHTML = tableHtml(state);
   const fname = room.name + '운동챌린지_' + md(state.days[0]).replace('/', '-') + '.png';
-  document.fonts.ready
+  const job = shotJob = document.fonts.ready
     .then(() => html2canvas($('shotArea'), { scale: 2, backgroundColor: '#ffffff', windowWidth: 1000 }))
-    .then(c => {
-      const url = c.toDataURL('image/png');
-      $('shot').src = url; $('dl').href = url; $('dl').download = fname;
-      $('modal').classList.add('show');
-      return new Promise(ok => c.toBlob(ok, 'image/png'));
-    })
-    .then(blob => {
-      shotFile = new File([blob], fname, { type: 'image/png' });
-      $('share').style.display = navigator.canShare && navigator.canShare({ files: [shotFile] }) ? '' : 'none';
-    })
-    .finally(() => { btn.disabled = false; btn.textContent = '📷 표 이미지 만들기'; });
+    .then(c => { shotUrl = c.toDataURL('image/png'); return new Promise(ok => c.toBlob(ok, 'image/png')); })
+    .then(blob => { if (job === shotJob) shotFile = new File([blob], fname, { type: 'image/png' }); });
+  return job;
 }
-$('share').onclick = () => navigator.share({ files: [shotFile] }).catch(e => { if (e.name !== 'AbortError') $('share').style.display = 'none'; });
+function showShot() { $('shot').src = shotUrl; $('dl').href = shotUrl; $('modal').classList.add('show'); }
+function saveShot() {
+  const btn = $('save');
+  const canShare = f => navigator.share && navigator.canShare && navigator.canShare({ files: [f] });
+  if (shotFile) {
+    if (!canShare(shotFile)) return showShot();
+    return navigator.share({ files: [shotFile] }).catch(e => { if (e.name !== 'AbortError') showShot(); });
+  }
+  // 아직 만드는 중이면 끝난 뒤 한 번 더 누르게
+  btn.disabled = true; btn.textContent = '이미지 준비 중…';
+  (shotJob || makeShot()).then(() => { btn.disabled = false; btn.textContent = '📤 카톡으로 표 보내기'; showMsg('ok', '준비됐어요. 한 번 더 눌러 주세요.'); });
+}
 $('close').onclick = () => $('modal').classList.remove('show');
 
 /* ===== 2단계 상세: 건강 기록 그 조 화면 ===== */
