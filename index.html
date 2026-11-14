@@ -165,10 +165,10 @@
   .cn-big.long { font-size: 68px; margin-top: 60px; }
   .cn-t { font-size: 33px; font-weight: 800; line-height: 1.32; letter-spacing: -0.03em; word-break: keep-all; }
   .cn-b { white-space: pre-line; font-size: 19px; font-weight: 500; line-height: 1.65; color: #4a352d; margin-top: 18px; word-break: keep-all; }
-  .cn-do { position: absolute; left: 40px; right: 40px; bottom: 96px; background: #fff; border-radius: 16px; padding: 16px 18px;
-           font-size: 19px; font-weight: 700; line-height: 1.5; box-shadow: 0 4px 14px rgba(181,82,63,.12); word-break: keep-all; }
-  .cn-do b { display: block; font-size: 14px; color: #e06666; margin-bottom: 4px; }
-  .cn-s { position: absolute; left: 40px; right: 40px; bottom: 56px; font-size: 12px; color: #8a6a5e; word-break: keep-all; }
+  .cn-do { position: absolute; left: 40px; right: 40px; bottom: 64px; background: #e06666; color: #fff; border-radius: 18px; padding: 18px 22px 20px;
+           font-size: 23px; font-weight: 800; line-height: 1.45; box-shadow: 0 8px 20px rgba(224,102,102,.35); word-break: keep-all; }
+  .cn-do b { display: block; font-size: 15px; font-weight: 700; color: rgba(255,255,255,.9); margin-bottom: 6px; }
+  .cn-s { position: absolute; left: 40px; right: 40px; bottom: 28px; font-size: 12px; color: #8a6a5e; word-break: keep-all; }
   .cn-foot { position: absolute; left: 40px; bottom: 26px; font-size: 14px; font-weight: 800; color: #4a9b6e; }
   .foot { font-size: 12px; color: var(--sub); }
   #nextBox { margin-top: 14px; font-size: 15px; line-height: 1.6; }
@@ -528,9 +528,9 @@ function cardNewsHtml(c) {
     <div class="cn-big${c.n.length > 7 ? ' long' : ''}">${esc(c.n)}</div>
     <div class="cn-t">${esc(c.t)}</div>
     <div class="cn-b">${esc(c.b)}</div>
-    <div class="cn-do"><b>이렇게 해 보세요</b>${esc(c.d)}</div>
+    <div class="cn-do"><b>👉 오늘 오후, 바로 이렇게</b>${esc(c.d)}</div>
     <div class="cn-s">${esc(c.s)}</div>
-    <div class="cn-foot">🌱 라이프 체인저</div></div>`;
+    </div>`;
 }
 // 설명이 「오늘 해 볼 것」 칸에 닿으면 설명·제목 글자를 조금씩 줄인다
 function fitCard() {
