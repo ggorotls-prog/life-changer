@@ -91,7 +91,11 @@
   tbody tr:last-child td { border-bottom: var(--bold); }
   td.rest { text-align: center; min-width: 76px; font-weight: 700; }
   td.rest.zero { background: var(--zero); color: #0f4d2c; }
-  td.rest.none { background: var(--left); color: #fff; }
+  /* 남은 횟수 경고(2026-11-07 룡): 오늘 안 하면 결단을 못 채움 = 빨강, 하루 여유 = 주황 */
+  td.rest.bad { background: #cc0000; color: #fff; }
+  td.rest.warn { background: var(--left); color: #fff; }
+  .legend { font-size: 13px; color: var(--sub); margin-top: 8px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin: 0 3px 0 8px; }
   td.rest.off { background: #e8e8e8; color: #555; }
   .s { display: none; }
   @media (max-width: 600px) {
@@ -327,7 +331,10 @@ function tableHtml(w) {
     w.days.forEach(d => { const on = !!mine[d]; if (on) cnt++;
       h += '<td class="d' + (on ? ' on' : '') + '">' + (on ? two('오운완', '✔') : '') + '</td>'; });
     const rest = Math.max(0, m.goal - cnt);
-    const cls = !m.goal ? 'off' : rest === 0 ? 'zero' : (cnt === 0 ? 'none' : '');
+    // 남은 날 = 오늘 포함, 아직 안 한 날(참가자 내 기록과 같은 기준). 지난 주는 경고 없음
+    const open = w.days.filter(d => d >= w.today && !mine[d]).length;
+    const live = w.days[6] >= w.today;
+    const cls = !m.goal ? 'off' : rest === 0 ? 'zero' : !live ? '' : rest >= open ? 'bad' : rest === open - 1 ? 'warn' : '';
     h += '<td class="rest ' + cls + '">' + (m.goal ? rest + '회' : '휴무') + '</td></tr>';
   });
   return h + '</tbody></table>';
@@ -352,7 +359,7 @@ function renderRoom(w) {
     <div class="card"><h2>📋 전체 표</h2>
       <div class="bar"><button class="nav" id="prev">◀ 지난주</button><span class="wk">${md(w.days[0])} ~ ${md(w.days[6])}</span>
         <button class="nav" id="next"${w.days[6] >= w.today ? ' disabled' : ''}>다음주 ▶</button></div>
-      <div class="scroll"><div id="board">${tableHtml(w)}</div></div>
+      <div class="scroll"><div id="board">${tableHtml(w)}</div></div>${w.days[6] >= w.today ? '<div class="legend">남은 횟수<i style="background:#cc0000"></i>오늘 안 하면 못 채움<i style="background:var(--left)"></i>하루 여유<i style="background:var(--zero)"></i>달성</div>' : ''}
       <div id="nextBox">${nextHtml(w)}</div>
       <div class="bar" style="margin-top:10px;margin-bottom:0"><span class="foot">불러온 시각 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
         <button class="save" id="save">📷 표 이미지 만들기</button></div></div>
