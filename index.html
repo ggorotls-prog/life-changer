@@ -56,6 +56,12 @@
   .room .nums span { background: #f3f3f3; border-radius: 8px; padding: 3px 8px; }
   .room .nums .ok { background: #e3f4ea; color: #0f4d2c; }
   .room .nums .bad { background: #fde2e2; color: #8a1c1c; }
+  /* 단계별 묶음: 제목 + 아래 구분선 (2026-11-14 룡) */
+  .stage { font-size: 16px; font-weight: 800; margin: 22px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--s1); color: var(--s1); }
+  .stage.s2 { border-bottom-color: var(--s2); color: var(--s2); }
+  .stage:first-child { margin-top: 4px; }
+  .stage small { font-size: 13px; font-weight: 500; color: var(--sub); margin-left: 6px; }
+  .room .adm { float: right; font-size: 12px; color: var(--sub); font-weight: 500; }
   .newroom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .newroom .full { grid-column: 1 / -1; }
 
@@ -232,21 +238,18 @@ function loadHome() {
 function cardHtml(r) {
   const s = r.stats || {};
   return `<button class="room s${r.stage}" data-stage="${r.stage}" data-id="${esc(r.id)}">
-    <div class="badge">${STAGE[r.stage]}</div><div class="nm">${esc(r.name)}</div>
+    ${home.super ? `<span class="adm">관리자 ${esc(r.admin)}</span>` : ''}<div class="badge">${STAGE[r.stage]}</div><div class="nm">${esc(r.name)}</div>
     <div class="nums"><span>👥 ${s.members || 0}명</span><span class="ok">이번 주 다 채움 ${s.full || 0}</span>
     <span class="${s.risk ? 'bad' : ''}">위험 ${s.risk || 0}</span><span>오늘 기록 ${s.today || 0}</span></div></button>`;
 }
 function renderHome() {
   const h = home;
-  let body = '';
-  if (h.super) {
-    // 최종관리자: 관리자마다 묶어서
-    const by = {};
-    h.rooms.forEach(r => (by[r.admin] = by[r.admin] || []).push(r));
-    body = Object.keys(by).sort().map(a => `<div class="owner">${esc(a)}님의 방</div><div class="grid">${by[a].map(cardHtml).join('')}</div>`).join('');
-  } else {
-    body = h.rooms.length ? `<div class="grid">${h.rooms.map(cardHtml).join('')}</div>` : '<p class="hint">아직 운영하는 방이 없어요. 아래에서 새 방을 만들어 주세요.</p>';
-  }
+  // 단계끼리 모으고, 단계마다 제목 + 구분선. 최종관리자는 카드에 관리자 이름이 보인다.
+  const body = [1, 2].map(st => {
+    const list = h.rooms.filter(r => r.stage === st);
+    if (!list.length) return '';
+    return `<div class="stage s${st}">${STAGE[st]}<small>${list.length}개</small></div><div class="grid">${list.map(cardHtml).join('')}</div>`;
+  }).join('') || '<p class="hint">아직 운영하는 방이 없어요. 아래에서 새 방을 만들어 주세요.</p>';
   $('app').innerHTML = (body || '<p class="hint">방이 없어요.</p>') +
     `<div class="card" style="margin-top:18px"><h2>➕ 새 방 만들기</h2><div class="newroom">
       <div><label for="nStage">단계</label><select id="nStage"><option value="1">1단계 · 운동방 (오운완 인증)</option><option value="2">2단계 · 생활개선 (건강 기록 조)</option></select></div>
