@@ -70,6 +70,19 @@
   .hero .steps { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13px; }
   .hero .steps span { background: rgba(255,255,255,.22); border-radius: 999px; padding: 4px 10px; }
   .hero .steps b { font-size: 15px; }
+  /* 오늘 운동 체크: 내가 참가 중인 방 전부 한 번에 (2026-11-14 룡) */
+  .check { background: var(--card); border-radius: 16px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 14px 0 4px; }
+  .check h2 { margin-bottom: 8px; }
+  .check .mine { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .check .mine span { border-radius: 999px; padding: 5px 10px; font-size: 13px; background: #f3f3f3; }
+  .check .mine span.done { background: #e3f4ea; color: #0f4d2c; font-weight: 700; }
+  .check .mine span.need { background: #fff3c4; color: #6b5200; }
+  .check .row2 { display: flex; gap: 8px; }
+  .check .row2 input { flex: 1; }
+  .check .go { white-space: nowrap; }
+  .check.alldone .go { background: #4a9b6e; }
+  .who-row .meb { background: #fff; border: 1px solid var(--line); margin-right: 6px; }
+  .who-row .meb.on { background: #fff3c4; border-color: #e0c060; }
   .room .adm { float: right; font-size: 12px; color: var(--sub); font-weight: 500; }
   /* 단계 끝 「새 방」 칸: 누르면 그 자리에서 이름 적기 */
   .addroom { border: 2px dashed #e3b4b4; border-radius: 14px; padding: 12px; display: flex; align-items: center; min-height: 104px; }
@@ -261,6 +274,33 @@ function cardHtml(r) {
     <div class="nums"><span>👥 ${s.members || 0}명</span><span class="ok">이번 주 다 채움 ${s.full || 0}</span>
     <span class="${s.risk ? 'bad' : ''}">위험 ${s.risk || 0}</span><span>오늘 기록 ${s.today || 0}</span></div></button>`;
 }
+// 오늘 운동 체크 칸: 1단계 = 오늘 오운완, 2단계 = 건강 기록 운동 한 줄 (기상 전이면 건강 기록에서 기상 먼저)
+function checkHtml(mine) {
+  if (!mine || !mine.length) return `<div class="check"><h2>💪 오늘 운동 체크</h2><p class="sub">아직 참가 중인 방이 없어요. 방에 들어가 참가자 관리에서 내 이름의 「나예요」를 누르면 여기서 한 번에 체크돼요.</p></div>`;
+  const all = mine.every(m => m.done);
+  const chip = m => `<span class="${m.done ? 'done' : m.need ? 'need' : ''}">${m.done ? '✅' : m.need ? '⏰' : '⬜'} ${m.stage}단계 ${esc(m.room)}</span>`;
+  const need = mine.some(m => !m.done && m.need);
+  return `<div class="check${all ? ' alldone' : ''}"><h2>💪 오늘 운동 체크</h2>
+    <div class="mine">${mine.map(chip).join('')}</div>
+    <div class="row2"><input id="ckNote" placeholder="무슨 운동? (예: 걷기 30분)" maxlength="60"><button class="go" id="ckGo">${all ? '오늘 다 했어요 🎉' : '한 번에 체크!'}</button></div>
+    ${need ? '<p class="sub">⏰ 표시 조는 건강 기록에서 기상을 먼저 적어야 체크돼요.</p>' : ''}</div>`;
+}
+function bindCheck() {
+  const go = $('ckGo');
+  if (!go) return;
+  const run = () => {
+    if (home.mine.every(m => m.done)) return showMsg('ok', '오늘은 이미 다 체크했어요 💪');
+    go.disabled = true;
+    call('lc_check', { p_note: $('ckNote').value }).then(mine => {
+      home.mine = mine;
+      const box = document.querySelector('.check'); box.outerHTML = checkHtml(mine); bindCheck();
+      const left = mine.filter(m => !m.done);
+      showMsg(left.length ? 'err' : 'ok', left.length ? '체크 안 된 방: ' + left.map(m => m.room).join(', ') : '오늘 운동 체크 끝! 수고하셨어요 🎉');
+    }).catch(fail).finally(() => { go.disabled = false; });
+  };
+  go.onclick = run;
+  $('ckNote').onkeydown = e => { if (e.key === 'Enter') run(); };
+}
 function renderHome() {
   const h = home;
   // 맨 위: 나를 통해 삶이 변하는 사람 수 (내가 보는 방 인원 합, 1단계는 참가 중인 사람만)
@@ -278,6 +318,8 @@ function renderHome() {
         <div class="form"><input class="nName" placeholder="방 이름 (예: 새벽)">${adminSel(st)}<button class="go nGo">만들기</button></div></div></div>`;
   }).join('');
   $('app').innerHTML = body;
+  $('app').querySelector('.hero').insertAdjacentHTML('afterend', checkHtml(h.mine));
+  bindCheck();
   // 숫자가 0부터 올라가며 보이게
   const total = sum(), t0 = performance.now();
   const tick = now => { const p = Math.min(1, (now - t0) / 900), el = $('cnt');
@@ -386,7 +428,7 @@ function nextHtml(w) {
 function renderRoom(w) {
   state = w;
   const on = w.all.filter(m => m.active), off = w.all.filter(m => !m.active);
-  const row = (m, cls, txt) => `<div class="who-row"><span>${esc(m.name)} <small>주 ${m.goal}회</small></span><button class="${cls}" data-name="${esc(m.name)}">${txt}</button></div>`;
+  const row = (m, cls, txt) => `<div class="who-row"><span>${esc(m.name)} <small>주 ${m.goal}회</small></span><span>${m.active ? `<button class="meb${m.me ? ' on' : ''}" data-me="${m.me ? 0 : 1}" data-name="${esc(m.name)}">${m.me ? '⭐ 나' : '나예요'}</button>` : ''}<button class="${cls}" data-name="${esc(m.name)}">${txt}</button></span></div>`;
   const last = w.rounds[w.rounds.length - 1];
   const nextStart = last ? addDays(last.end, 1) : sundayOf(w.today);
   $('app').innerHTML = backBtn() + `
@@ -402,7 +444,7 @@ function renderRoom(w) {
     <div class="card" id="manage"><h2>👥 참가자 관리</h2>
       <h3>➕ 새 참가자</h3><div class="add"><input type="text" id="newName" placeholder="이름"><select id="newGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">주 ${n}회</option>`).join('')}</select><button class="go" id="addBtn">추가</button></div>
       <h3>🌴 쉬는 중 ${off.length}명</h3>${off.map(m => row(m, 'back2', '재참가')).join('') || '<div class="who-row">없음</div>'}
-      <h3>💪 참가 중 ${on.length}명</h3>${on.map(m => row(m, 'out', '빼기')).join('') || '<div class="who-row">없음</div>'}</div>
+      <p class="sub">내가 이 방 참가자면 내 이름의 「나예요」를 눌러 두세요. 첫 화면에서 한 번에 운동 체크돼요.</p><h3>💪 참가 중 ${on.length}명</h3>${on.map(m => row(m, 'out', '빼기')).join('') || '<div class="who-row">없음</div>'}</div>
     <div class="card"><h2>🗓 기수</h2>
       ${w.rounds.slice().reverse().map(r => `<div class="who-row"><span><b>${esc(r.name)}</b> <small>${md(r.start)}(${wd(r.start)}) ~ ${md(r.end)}(${wd(r.end)})</small></span></div>`).join('') || '<p class="sub">아직 기수가 없어요. 기수가 있어야 주차별 결과와 다음 달 응답이 나와요.</p>'}
       <h3>➕ 새 기수</h3><div class="add3">
@@ -422,6 +464,8 @@ function renderRoom(w) {
       if (!name) return showMsg('err', '새 참가자 이름을 적어 주세요.');
       return setMember(name, +$('newGoal').value, true);
     }
+    if (b.dataset.me) return call('lc_link_me', { p_room: room.id, p_name: b.dataset.name, p_on: b.dataset.me === '1' })
+      .then(() => { home = null; showMsg('ok', b.dataset.me === '1' ? b.dataset.name + ' = 나로 연결했어요. 첫 화면에서 한 번에 체크돼요.' : '연결을 풀었어요.'); return loadRoom(state.weekStart); }).catch(fail);
     if (b.classList.contains('back2')) return setMember(b.dataset.name, null, true);
     if (confirm(b.dataset.name + '님을 참가자에서 뺄까요? 기록은 남아요.')) setMember(b.dataset.name, null, false);
   };
