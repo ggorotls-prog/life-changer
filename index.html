@@ -61,6 +61,15 @@
   .stage.s2 { border-bottom-color: var(--s2); color: var(--s2); }
   .stage:first-child { margin-top: 4px; }
   .stage small { font-size: 13px; font-weight: 500; color: var(--sub); margin-left: 6px; }
+  /* 맨 위: 나를 통해 라이프 체인지 중인 사람 수 (2026-11-14 룡) */
+  .hero { border-radius: 18px; padding: 22px 20px 18px; color: #fff; margin-bottom: 8px;
+          background: linear-gradient(135deg, #e06666 0%, #d9824f 45%, #4a9b6e 100%); box-shadow: 0 6px 18px rgba(74,155,110,.25); }
+  .hero .lead { font-size: 15px; opacity: .92; }
+  .hero .big { font-size: 22px; font-weight: 800; margin: 2px 0 12px; line-height: 1.2; }
+  .hero .big b { font-size: 56px; letter-spacing: -0.03em; margin-right: 4px; font-variant-numeric: tabular-nums; }
+  .hero .steps { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+  .hero .steps span { background: rgba(255,255,255,.22); border-radius: 999px; padding: 4px 10px; }
+  .hero .steps b { font-size: 15px; }
   .room .adm { float: right; font-size: 12px; color: var(--sub); font-weight: 500; }
   .newroom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .newroom .full { grid-column: 1 / -1; }
@@ -238,18 +247,23 @@ function loadHome() {
 function cardHtml(r) {
   const s = r.stats || {};
   return `<button class="room s${r.stage}" data-stage="${r.stage}" data-id="${esc(r.id)}">
-    ${home.super ? `<span class="adm">관리자 ${esc(r.admin)}</span>` : ''}<div class="badge">${STAGE[r.stage]}</div><div class="nm">${esc(r.name)}</div>
+    ${home.super ? `<span class="adm">관리자 ${esc(r.admin)}</span>` : ''}<div class="nm">${esc(r.name)}</div>
     <div class="nums"><span>👥 ${s.members || 0}명</span><span class="ok">이번 주 다 채움 ${s.full || 0}</span>
     <span class="${s.risk ? 'bad' : ''}">위험 ${s.risk || 0}</span><span>오늘 기록 ${s.today || 0}</span></div></button>`;
 }
 function renderHome() {
   const h = home;
+  // 맨 위: 나를 통해 라이프 체인지 중인 사람 수 (내가 보는 방 인원 합, 1단계는 참가 중인 사람만)
+  const sum = st => h.rooms.filter(r => !st || r.stage === st).reduce((n, r) => n + ((r.stats || {}).members || 0), 0);
+  const hero = `<div class="hero"><div class="lead">${esc(h.me)}님을 통해 지금</div>
+    <div class="big"><b id="cnt">0</b>명이 라이프 체인지 중 🌱</div>
+    <div class="steps"><span>💪 1단계 운동방 <b>${sum(1)}</b>명</span><span>🌿 2단계 생활개선 <b>${sum(2)}</b>명</span><span>🔥 3단계 캠프 곧</span></div></div>`;
   // 단계끼리 모으고, 단계마다 제목 + 구분선. 최종관리자는 카드에 관리자 이름이 보인다.
-  const body = [1, 2].map(st => {
+  const body = hero + ([1, 2].map(st => {
     const list = h.rooms.filter(r => r.stage === st);
     if (!list.length) return '';
     return `<div class="stage s${st}">${STAGE[st]}<small>${list.length}개</small></div><div class="grid">${list.map(cardHtml).join('')}</div>`;
-  }).join('') || '<p class="hint">아직 운영하는 방이 없어요. 아래에서 새 방을 만들어 주세요.</p>';
+  }).join('') || '<p class="hint">아직 운영하는 방이 없어요. 아래에서 새 방을 만들어 주세요.</p>');
   $('app').innerHTML = (body || '<p class="hint">방이 없어요.</p>') +
     `<div class="card" style="margin-top:18px"><h2>➕ 새 방 만들기</h2><div class="newroom">
       <div><label for="nStage">단계</label><select id="nStage"><option value="1">1단계 · 운동방 (오운완 인증)</option><option value="2">2단계 · 생활개선 (건강 기록 조)</option></select></div>
@@ -257,6 +271,11 @@ function renderHome() {
       ${h.super ? `<div class="full"><label for="nAdmin">관리자</label><select id="nAdmin">${h.admins.map(a => `<option value="${a.id}"${a.name === h.me ? ' selected' : ''}>${esc(a.name)}</option>`).join('')}</select></div>` : ''}
       <div class="full"><button class="go" id="nGo">만들기</button></div></div>
       <p class="sub">1단계 방은 만들면 참가자 주소가 생겨요. 2단계 조는 초대 코드로 건강 기록에 들어와요.</p></div>`;
+  // 숫자가 0부터 올라가며 보이게
+  const total = sum(), t0 = performance.now();
+  const tick = now => { const p = Math.min(1, (now - t0) / 900), el = $('cnt');
+    if (!el) return; el.textContent = Math.round(total * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
   $('app').querySelectorAll('.room').forEach(b => b.onclick = () => { location.hash = (b.dataset.stage === '1' ? 'room=' : 'group=') + b.dataset.id; });
   $('nGo').onclick = () => {
     const name = $('nName').value.trim();
