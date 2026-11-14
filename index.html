@@ -84,6 +84,10 @@
   .check.alldone .go { background: #4a9b6e; }
   .who-row .meb { background: #fff; border: 1px solid var(--line); margin-right: 6px; }
   .who-row .meb.on { background: #fff3c4; border-color: #e0c060; }
+  .meline { font-size: 14px; color: var(--sub); margin: 12px 2px 0; }
+  .meline b { color: var(--ink); } .meline button { padding: 4px 10px; font-size: 13px; margin-left: 6px; }
+  .sendall { display: block; width: 100%; padding: 14px; font-size: 17px; margin-top: 14px; background: var(--red); }
+  #cardPrev img { margin: 0 auto 6px; }
   .room .adm { float: right; font-size: 12px; color: var(--sub); font-weight: 500; }
   /* 단계 끝 「새 방」 칸: 누르면 그 자리에서 이름 적기 */
   .addroom { border: 2px dashed #e3b4b4; border-radius: 14px; padding: 12px; display: flex; align-items: center; min-height: 104px; }
@@ -301,7 +305,7 @@ function cardHtml(r) {
 }
 // 오늘 운동 체크 칸: 1단계 = 오늘 오운완, 2단계 = 건강 기록 운동 한 줄 (기상 전이면 건강 기록에서 기상 먼저)
 function checkHtml(mine) {
-  if (!mine || !mine.length) return `<div class="check"><h2>💪 오늘 운동 체크</h2><p class="sub">아직 참가 중인 방이 없어요. 방에 들어가 참가자 관리에서 내 이름의 「나예요」를 누르면 여기서 한 번에 체크돼요.</p></div>`;
+  if (!mine || !mine.length) return `<div class="check"><h2>💪 오늘 운동 체크</h2><p class="sub">아직 참가 중인 방이 없어요. 위에서 실명을 정하거나 「참가하기」를 누르면 여기서 한 번에 체크돼요.</p></div>`;
   const all = mine.every(m => m.done);
   const chip = m => `<span class="${m.done ? 'done' : m.need ? 'need' : ''}">${m.done ? '✅' : m.need ? '⏰' : '⬜'} ${esc(m.room)}${m.stage === 2 ? ' 조' : ' 방'}${m.done ? ' 끝' : m.need ? ' · 건강 기록 먼저' : ''}</span>`;
   const needs = mine.filter(m => !m.done && m.need).map(m => esc(m.room) + ' 조');
@@ -327,10 +331,33 @@ function bindCheck() {
   go.onclick = run;
   $('ckNote').onkeydown = e => { if (e.key === 'Enter') run(); };
 }
+// 관리자도 반드시 참가자: 1단계 방에서 쓰는 실명을 한 번만 정하면 모든 1단계 방에서 나로 잡힌다(방마다 「나예요」 없음)
+function meHtml(h) {
+  const miss = (h.missing || []).map(r => `<div class="who-row"><span>⚠️ 「${esc(r.name)}」 방에 내가 참가자로 없어요</span><button class="go" data-join="${esc(r.id)}">참가하기 (주 3회)</button></div>`).join('');
+  if (h.realName) return `<div class="meline">🙋 1단계 방에서 내 이름 <b>${esc(h.realName)}</b> <button id="meEdit">바꾸기</button></div>${miss ? '<div class="check">' + miss + '</div>' : ''}`;
+  return `<div class="check"><h2>🙋 1단계 방에서 쓰는 내 실명</h2>
+    <p class="sub">관리자도 참가자예요. 한 번만 적으면 모든 운동방에서 나로 잡혀서, 아래 「오늘 운동 체크」가 한 번에 돼요.</p>
+    <div class="row2"><input id="meName" placeholder="예: 김귀룡"><button class="go" id="meSave">저장</button></div></div>`;
+}
+function bindMe() {
+  const save = () => {
+    const v = ($('meName') || {}).value || '';
+    if (!v.trim()) return showMsg('err', '실명을 적어 주세요.');
+    call('lc_set_real_name', { p_name: v.trim() }).then(() => { showMsg('ok', '저장했어요. 모든 1단계 방에서 나로 잡혀요.'); home = null; route(); }).catch(fail);
+  };
+  if ($('meSave')) { $('meSave').onclick = save; $('meName').onkeydown = e => { if (e.key === 'Enter') save(); }; }
+  if ($('meEdit')) $('meEdit').onclick = () => {
+    const v = prompt('1단계 방에서 쓰는 내 실명', home.realName || '');
+    if (v && v.trim()) call('lc_set_real_name', { p_name: v.trim() }).then(() => { home = null; route(); }).catch(fail);
+  };
+  $('app').querySelectorAll('[data-join]').forEach(b => b.onclick = () =>
+    call('lc_join_me', { p_room: b.dataset.join, p_goal: 3 }).then(() => { showMsg('ok', '참가자로 들어갔어요. 결단은 방에서 바꿀 수 있어요.'); home = null; route(); }).catch(fail));
+}
 function renderHome() {
   const h = home;
   // 맨 위: 나를 통해 삶이 변하는 사람 수 (내가 보는 방 인원 합, 1단계는 참가 중인 사람만)
-  const sum = st => h.rooms.filter(r => !st || r.stage === st).reduce((n, r) => n + ((r.stats || {}).members || 0), 0);
+  // 같은 사람(같은 계정)이 여러 방에 있어도 한 번만 센다(서버 lc_home.people, 2026-11-15 룡)
+  const pp = h.people || {}, sum = st => (st === 1 ? pp.s1 : st === 2 ? pp.s2 : pp.all) || 0;
   const hero = `<div class="hero"><div class="lead">나를 통해 지금</div>
     <div class="big"><b id="cnt">0</b>명의 삶이 변하는 중 🌱</div>
     <div class="steps"><span>💪 1단계 운동방 <b>${sum(1)}</b>명</span><span>🌿 2단계 생활개선 <b>${sum(2)}</b>명</span><span>🔥 3단계 캠프 곧</span></div></div>`;
@@ -341,11 +368,11 @@ function renderHome() {
     const list = h.rooms.filter(r => r.stage === st);
     return `<div class="stage s${st}">${STAGE[st]}<small>${list.length}개</small></div><div class="grid">${list.map(cardHtml).join('')}
       <div class="addroom s${st}" data-st="${st}"><button class="open">${NEW[st][0]}<small>${NEW[st][1]}</small></button>
-        <div class="form"><input class="nName" placeholder="방 이름 (예: 새벽)">${st === 1 ? `<div class="row2"><input class="nMe" placeholder="방에서 쓸 내 이름"><select class="nGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">주 ${n}회</option>`).join('')}</select></div><small class="sub">관리자도 참가자예요. 내 이름으로 첫 참가자가 돼요.</small>` : ''}${adminSel(st)}<button class="go nGo">만들기</button></div></div></div>`;
+        <div class="form"><input class="nName" placeholder="방 이름 (예: 새벽)">${st === 1 ? `<select class="nGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">내 결단 주 ${n}회</option>`).join('')}</select><small class="sub">관리자도 참가자예요. 실명${h.realName ? '(' + esc(h.realName) + ')' : ''}으로 첫 참가자가 돼요.</small>` : ''}${adminSel(st)}<button class="go nGo">만들기</button></div></div></div>`;
   }).join('');
   $('app').innerHTML = body;
-  $('app').querySelector('.hero').insertAdjacentHTML('afterend', checkHtml(h.mine));
-  bindCheck();
+  $('app').querySelector('.hero').insertAdjacentHTML('afterend', meHtml(h) + checkHtml(h.mine));
+  bindCheck(); bindMe();
   // 숫자가 0부터 올라가며 보이게
   const total = sum(), t0 = performance.now();
   const tick = now => { const p = Math.min(1, (now - t0) / 900), el = $('cnt');
@@ -359,9 +386,8 @@ function renderHome() {
       const v = name.value.trim();
       if (!v) return showMsg('err', '방 이름을 적어 주세요.');
       go.disabled = true;
-      const adm = box.querySelector('.nAdmin'), me = box.querySelector('.nMe'), goal = box.querySelector('.nGoal');
-      if (me && !me.value.trim()) { go.disabled = false; return showMsg('err', '관리자도 참가자예요. 방에서 쓸 내 이름을 적어 주세요.'); }
-      call('lc_new_room', { p_stage: st, p_name: v, p_admin: adm ? adm.value : null, p_my_name: me ? me.value.trim() : null, p_goal: goal ? +goal.value : 3 }).then(r => {
+      const adm = box.querySelector('.nAdmin'), goal = box.querySelector('.nGoal');
+      call('lc_new_room', { p_stage: st, p_name: v, p_admin: adm ? adm.value : null, p_goal: goal ? +goal.value : 3 }).then(r => {
         home = null;
         showMsg('ok', '「' + v + '」 방을 만들었어요.');
         location.hash = (r.stage === 1 ? 'room=' : 'group=') + r.id;
@@ -456,23 +482,25 @@ function nextHtml(w) {
 function renderRoom(w) {
   state = w;
   const on = w.all.filter(m => m.active), off = w.all.filter(m => !m.active);
-  const row = (m, cls, txt) => `<div class="who-row"><span>${esc(m.name)} <small>주 ${m.goal}회</small></span><span>${m.active ? `<button class="meb${m.me ? ' on' : ''}" data-me="${m.me ? 0 : 1}" data-name="${esc(m.name)}">${m.me ? '⭐ 나' : '나예요'}</button>` : ''}<button class="${cls}" data-name="${esc(m.name)}">${txt}</button></span></div>`;
+  const row = (m, cls, txt) => `<div class="who-row"><span>${esc(m.name)} <small>주 ${m.goal}회</small></span><span>${m.me ? '<span class="meb on">⭐ 나</span>' : ''}<button class="${cls}" data-name="${esc(m.name)}">${txt}</button></span></div>`;
   const last = w.rounds[w.rounds.length - 1];
   const nextStart = last ? addDays(last.end, 1) : sundayOf(w.today);
   $('app').innerHTML = backBtn() + `
     <div class="card"><h2>💪 ${esc(room.name)} <span class="sub">${STAGE[1]}</span></h2>
       <label>참가자 주소 (단톡방에 올려 주세요 · 로그인 없이 이름만 골라요)</label>${urlBox(ROOM_URL(room.id))}</div>
-    <div class="card"><h2>📋 전체 표</h2>
+    <div class="card"><h2>📤 오늘 단톡방에 보낼 것</h2>
+      <div id="cardPrev"><p class="hint">카드 만드는 중…</p></div>
+      <h3>② 운동표</h3>
       <div class="bar"><button class="nav" id="prev">◀ 지난주</button><span class="wk">${md(w.days[0])} ~ ${md(w.days[6])}</span>
         <button class="nav" id="next"${w.days[6] >= w.today ? ' disabled' : ''}>다음주 ▶</button></div>
       <div class="scroll"><div id="board">${tableHtml(w)}</div></div>${w.days[6] >= w.today ? '<div class="legend">남은 횟수<i style="background:#cc0000"></i>오늘 안 하면 못 채움<i style="background:var(--left)"></i>하루 여유<i style="background:var(--zero)"></i>달성</div>' : ''}
-      <div id="nextBox">${nextHtml(w)}</div>
-      <div class="bar" style="margin-top:10px;margin-bottom:0"><span class="foot">불러온 시각 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-        <button class="save" id="save">📤 카톡으로 표 + 카드 보내기</button></div><div id="cardPrev"></div></div>
+      <button class="save sendall" id="save">📤 카톡으로 카드 + 운동표 보내기</button>
+      <p class="foot" style="text-align:center">불러온 시각 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} · 한 번 누르면 두 장이 순서대로 같이 가요</p>
+      <div id="nextBox">${nextHtml(w)}</div></div>
     <div class="card" id="manage"><h2>👥 참가자 관리</h2>
       <h3>➕ 새 참가자</h3><div class="add"><input type="text" id="newName" placeholder="이름"><select id="newGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">주 ${n}회</option>`).join('')}</select><button class="go" id="addBtn">추가</button></div>
       <h3>🌴 쉬는 중 ${off.length}명</h3>${off.map(m => row(m, 'back2', '재참가')).join('') || '<div class="who-row">없음</div>'}
-      <p class="sub">내가 이 방 참가자면 내 이름의 「나예요」를 눌러 두세요. 첫 화면에서 한 번에 운동 체크돼요.</p><h3>💪 참가 중 ${on.length}명</h3>${on.map(m => row(m, 'out', '빼기')).join('') || '<div class="who-row">없음</div>'}</div>
+      <h3>💪 참가 중 ${on.length}명</h3>${on.map(m => row(m, 'out', '빼기')).join('') || '<div class="who-row">없음</div>'}</div>
     <div class="card"><h2>🗓 기수</h2>
       ${w.rounds.slice().reverse().map(r => `<div class="who-row"><span><b>${esc(r.name)}</b> <small>${md(r.start)}(${wd(r.start)}) ~ ${md(r.end)}(${wd(r.end)})</small></span></div>`).join('') || '<p class="sub">아직 기수가 없어요. 기수가 있어야 주차별 결과와 다음 달 응답이 나와요.</p>'}
       <h3>➕ 새 기수</h3><div class="add3">
@@ -568,19 +596,19 @@ function makeShot() {
     .then(f => {
       if (job !== shotJob) return;
       cardFile = f;
-      const pv = $('cardPrev'); if (pv) pv.innerHTML = f ? `<h3>📰 오늘의 카드뉴스 (표와 같이 보내져요)</h3><img src="${cardUrl}" alt="오늘의 카드뉴스">` : '';
+      const pv = $('cardPrev'); if (pv) pv.innerHTML = f ? `<h3>① 오늘의 카드뉴스</h3><img src="${cardUrl}" alt="오늘의 카드뉴스">` : '';
     });
   return job;
 }
 function showShot() {
-  $('shot').src = shotUrl; $('dl').href = shotUrl;
-  $('shot2').src = cardUrl; $('shot2').hidden = !cardFile;
+  $('shot').src = cardFile ? cardUrl : shotUrl; $('dl').href = $('shot').src;
+  $('shot2').src = shotUrl; $('shot2').hidden = !cardFile;
   $('modal').classList.add('show');
 }
 function saveShot() {
   const btn = $('save');
   if (shotFile) {
-    const files = cardFile ? [shotFile, cardFile] : [shotFile];
+    const files = cardFile ? [cardFile, shotFile] : [shotFile]; // 카드뉴스 → 운동표 순서(2026-11-15 룡)
     if (!(navigator.share && navigator.canShare && navigator.canShare({ files }))) return showShot();
     return navigator.share({ files }).catch(e => { if (e.name !== 'AbortError') showShot(); });
   }
