@@ -452,9 +452,9 @@ function route() {
   showMsg('', '');
   const h = location.hash.slice(1), m = h.match(/^(room|group)=(.+)$/);
   window.scrollTo(0, 0);
-  const ready = home ? Promise.resolve(home) : loadHome();
+  const fresh = !home, ready = home ? Promise.resolve(home) : loadHome();
   ready.then(() => {
-    if (!m) { $('app').innerHTML = '<p class="hint">불러오는 중…</p>'; return loadHome().then(renderHome); }
+    if (!m) { $('app').innerHTML = '<p class="hint">불러오는 중…</p>'; return (fresh ? Promise.resolve() : loadHome()).then(renderHome); }
     $('app').innerHTML = backBtn() + '<p class="hint">불러오는 중…</p>';
     if (m[1] === 'room') { room = { id: decodeURIComponent(m[2]), name: '' }; return loadRoom(); }
     return loadGroup(decodeURIComponent(m[2]));
