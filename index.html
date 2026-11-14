@@ -256,8 +256,8 @@ function renderHome() {
   const h = home;
   // 맨 위: 나를 통해 라이프 체인지 중인 사람 수 (내가 보는 방 인원 합, 1단계는 참가 중인 사람만)
   const sum = st => h.rooms.filter(r => !st || r.stage === st).reduce((n, r) => n + ((r.stats || {}).members || 0), 0);
-  const hero = `<div class="hero"><div class="lead">${esc(h.me)}님을 통해 지금</div>
-    <div class="big"><b id="cnt">0</b>명이 라이프 체인지 중 🌱</div>
+  const hero = `<div class="hero"><div class="lead">나를 통해 지금</div>
+    <div class="big"><b id="cnt">0</b>명의 삶이 변하는 중 🌱</div>
     <div class="steps"><span>💪 1단계 운동방 <b>${sum(1)}</b>명</span><span>🌿 2단계 생활개선 <b>${sum(2)}</b>명</span><span>🔥 3단계 캠프 곧</span></div></div>`;
   // 단계끼리 모으고, 단계마다 제목 + 구분선. 최종관리자는 카드에 관리자 이름이 보인다.
   const body = hero + ([1, 2].map(st => {
