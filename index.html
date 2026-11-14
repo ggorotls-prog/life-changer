@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>라이프 체인저 관리자</title>
+<link rel="preconnect" href="https://trlnatdkebjvgiqneulv.supabase.co" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --red: #e06666; --pink: #f4cccc; --done: #f9cb9c; --zero: #b7e1cd; --left: #e69138;
+    --line: #c9c9c9; --ink: #111; --sub: #555; --bg: #faf7f5; --card: #fff;
+    --s1: #e06666; --s2: #4a9b6e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: 'Noto Sans KR', sans-serif; font-weight: 500;
+         -webkit-font-smoothing: antialiased; letter-spacing: -0.01em; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0 16px; }
+  .top h1 { font-size: 20px; margin: 0; }
+  .top .who { font-size: 14px; color: var(--sub); white-space: nowrap; }
+  .top .who button { margin-left: 6px; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  h3 { font-size: 15px; margin: 16px 0 8px; }
+  .card { background: var(--card); border-radius: 14px; padding: 16px;
+          box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
+  label { font-size: 13px; color: var(--sub); display: block; margin-bottom: 4px; }
+  input, select { width: 100%; font: inherit; font-size: 16px; padding: 10px;
+          border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 10px; cursor: pointer; padding: 8px 14px; background: #eee; color: var(--ink); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .go { background: var(--red); color: #fff; padding: 12px 20px; font-size: 16px; }
+  .msg { margin-top: 10px; font-size: 15px; min-height: 1.4em; }
+  .msg.ok { color: #2e7d32; } .msg.err { color: #c62828; }
+  .hint { color: var(--sub); text-align: center; padding: 18px 0; margin: 0; }
+  .sub { color: var(--sub); font-size: 14px; }
+
+  /* 로그인 */
+  .login { max-width: 360px; margin: 40px auto; }
+  .login .f { margin-bottom: 12px; }
+  .login .go { width: 100%; }
+
+  /* 방 카드 */
+  .owner { font-size: 15px; color: var(--sub); margin: 18px 0 8px; font-weight: 700; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+  .room { background: var(--card); border-radius: 14px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+          text-align: left; cursor: pointer; border-left: 6px solid var(--s1); width: 100%; font-weight: 500; }
+  .room.s2 { border-left-color: var(--s2); }
+  .room .badge { font-size: 12px; font-weight: 700; color: var(--s1); }
+  .room.s2 .badge { color: var(--s2); }
+  .room .nm { font-size: 19px; font-weight: 800; margin: 2px 0 8px; }
+  .room .nums { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+  .room .nums span { background: #f3f3f3; border-radius: 8px; padding: 3px 8px; }
+  .room .nums .ok { background: #e3f4ea; color: #0f4d2c; }
+  .room .nums .bad { background: #fde2e2; color: #8a1c1c; }
+  .newroom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .newroom .full { grid-column: 1 / -1; }
+
+  /* 상세 공통 */
+  .back { background: none; padding: 4px 0; color: var(--sub); }
+  .url { display: flex; gap: 8px; align-items: center; }
+  .url input { font-size: 14px; }
+  .url button { white-space: nowrap; }
+
+  /* 1단계: 전체 표 (옛 히어로 관리자 화면 그대로) */
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .nav:disabled { opacity: .35; cursor: default; }
+  .wk { font-weight: 700; }
+  .save { background: #333; color: #fff; }
+  .scroll { overflow-x: auto; }
+  #board { background: #fff; display: inline-block; min-width: 100%; }
+  table { border-collapse: collapse; width: 100%; font-size: 17px; font-variant-numeric: tabular-nums; }
+  th, td { border: 1px solid var(--line); height: 40px; padding: 0 10px; text-align: center; white-space: nowrap; }
+  .title td { background: var(--red); color: #fff; font-size: 23px; font-weight: 800; height: 60px; border-color: var(--red); }
+  thead th { background: var(--pink); font-weight: 800; font-size: 16px; color: #3b1414; }
+  td.name { font-weight: 700; }
+  td.goal { text-align: center; color: #333; font-weight: 500; }
+  td.d { min-width: 76px; }
+  td.d.on { background: var(--done); font-weight: 800; color: #4a2300; }
+  th.today { background: #eaa3a3; }
+  table { --bold: 2px solid #111; }
+  .title td { border-bottom: var(--bold); }
+  thead tr:last-child th { border-bottom: var(--bold); }
+  thead tr:last-child th:nth-child(2), tbody td:nth-child(2),
+  thead tr:last-child th:nth-child(3), tbody td:nth-child(3) { border-left: var(--bold); }
+  thead tr:last-child th:last-child, tbody td.rest { border-left: var(--bold); border-right: var(--bold); }
+  .title td:last-child { border-right: var(--bold); }
+  tbody tr:last-child td { border-bottom: var(--bold); }
+  td.rest { text-align: center; min-width: 76px; font-weight: 700; }
+  td.rest.zero { background: var(--zero); color: #0f4d2c; }
+  td.rest.none { background: var(--left); color: #fff; }
+  td.rest.off { background: #e8e8e8; color: #555; }
+  .s { display: none; }
+  @media (max-width: 600px) {
+    .wrap { padding: 12px; } .card { padding: 12px; }
+    #board .l { display: none; } #board .s { display: inline; }
+    #board table { table-layout: fixed; font-size: 15px; letter-spacing: -0.03em; }
+    #board th, #board td { height: 38px; padding: 0 2px; }
+    #board td.d, #board td.rest { min-width: 0; }
+    #board col.c-name { width: 19%; } #board col.c-goal { width: 11%; } #board col.c-rest { width: 12%; }
+    #board thead th { font-size: 14px; line-height: 1.15; height: 42px; }
+    #board thead th small { display: block; font-size: 11px; font-weight: 500; color: #7a4a4a; }
+    #board td.d.on { font-size: 18px; }
+    #board td.goal { font-size: 13px; color: #555; }
+    #board .title td { font-size: 18px; height: 48px; }
+    .newroom { grid-template-columns: 1fr; }
+  }
+  #shotArea { position: fixed; left: -10000px; top: 0; width: 780px; background: #fff; }
+  .foot { font-size: 12px; color: var(--sub); }
+  #nextBox { margin-top: 14px; font-size: 15px; line-height: 1.6; }
+  #nextBox .row { padding: 8px 10px; border-radius: 10px; margin-bottom: 6px; background: #f7f7f7; }
+  #nextBox .row.go { background: #fdeee0; } #nextBox .row.rest { background: #eef4fb; }
+  .who-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 10px; margin-bottom: 4px; background: #f7f7f7; font-size: 15px; }
+  .who-row button { padding: 6px 12px; font-size: 14px; }
+  .who-row button.back2 { background: var(--red); color: #fff; }
+  .add { display: grid; grid-template-columns: 1fr 96px auto; gap: 8px; }
+  .add3 { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; }
+  @media (max-width: 600px) { .add3 { grid-template-columns: 1fr 1fr; } }
+
+  /* 2단계: 건강 기록 조 */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tbl th, .tbl td { border: 1px solid #e3e3e3; height: 34px; padding: 0 6px; }
+  .tbl th { background: #eef6f1; font-size: 13px; }
+  .why-td { white-space: normal; font-size: 12px; text-align: left; }
+  .code { font-family: monospace; font-size: 18px; font-weight: 800; letter-spacing: .08em; }
+
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
+           align-items: center; justify-content: center; padding: 16px; z-index: 9; }
+  .modal.show { display: flex; }
+  .modal .box { background: #fff; border-radius: 14px; padding: 16px; max-width: 100%; max-height: 100%; overflow: auto; text-align: center; }
+  .modal img { max-width: 100%; border: 1px solid var(--line); }
+  .modal p { margin: 8px 0; font-size: 14px; color: var(--sub); }
+  .modal .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .modal a, .modal button { padding: 10px 16px; border-radius: 10px; font-weight: 700; text-decoration: none; }
+  .modal a { background: var(--red); color: #fff; }
+  .modal button.share { background: #fee500; color: #191919; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>🌱 라이프 체인저 관리자</h1><span class="who" id="who"></span></div>
+  <div id="app"><p class="hint">불러오는 중…</p></div>
+  <div class="msg" id="msg"></div>
+</div>
+<div id="shotArea"></div>
+<div class="modal" id="modal">
+  <div class="box">
+    <img id="shot" alt="표 이미지">
+    <p>휴대폰은 이미지를 꾹 눌러 저장하거나 공유하세요.</p>
+    <div class="row">
+      <button class="share" id="share" style="display:none">카톡 등으로 보내기</button>
+      <a id="dl" download="운동챌린지.png">내려받기</a>
+      <button id="close">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 라이프 체인저 관리자 화면. 로그인 = 업무 기록 아이디(lc_login). 데이터는 로그인 열쇠를 받는 lc_* 함수로만.
+// 첫 화면 = 내 방 카드(1단계 운동방 hero_rooms, 2단계 건강 기록 조 life_groups). 최종관리자(깐깐룡이)는 모든 관리자의 방.
+// 아래 키는 공개용(publishable) 키라 화면에 있어도 된다.
+const SB_URL = 'https://trlnatdkebjvgiqneulv.supabase.co';
+const SB_KEY = 'sb_publishable_BqE1VCDg50oi9zCflCjMuw_wYF55CTj';
+const ROOM_URL = id => id === 'hero' ? 'https://ggorotls-prog.github.io/hero-workout/' : 'https://ggorotls-prog.github.io/life-changer/room/?r=' + id;
+const LIFE_URL = 'https://ggorotls-prog.github.io/life-room/';
+const STAGE = { 1: '1단계 · 운동방', 2: '2단계 · 생활개선' };
+
+const $ = id => document.getElementById(id);
+const store = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+let token = store.get('lc_token');
+let home = null;   // lc_home 결과
+let state = null;  // 1단계 상세: 한 주 표
+
+function rpc(fn, args) {
+  return fetch(SB_URL + '/rest/v1/rpc/' + fn, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+  }).then(r => r.json().then(j => {
+    if (!r.ok) {
+      if (j.message === 'auth') { logout(true); throw new Error('다시 로그인해 주세요.'); }
+      throw new Error(j.message || r.status);
+    }
+    return j;
+  }));
+}
+const call = (fn, args) => rpc(fn, Object.assign({ p_token: token }, args || {}));
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function showMsg(kind, text) { const m = $('msg'); m.className = 'msg ' + kind; m.textContent = text || ''; }
+const fail = e => showMsg('err', e.message || e);
+
+/* ===== 로그인 ===== */
+function renderLogin() {
+  $('who').innerHTML = '';
+  $('app').innerHTML = `<div class="card login"><h2>로그인</h2><p class="sub">업무 기록 아이디와 비밀번호로 들어와요.</p>
+    <div class="f"><label for="lid">아이디</label><input id="lid" autocomplete="username"></div>
+    <div class="f"><label for="lpw">비밀번호</label><input id="lpw" type="password" autocomplete="current-password"></div>
+    <button class="go" id="lgo">들어가기</button></div>`;
+  const go = () => {
+    $('lgo').disabled = true; showMsg('', '');
+    rpc('lc_login', { p_id: $('lid').value, p_pw: $('lpw').value }).then(r => {
+      if (r.error) throw new Error(r.error);
+      token = r.token; store.set('lc_token', token); route();
+    }).catch(fail).finally(() => { if ($('lgo')) $('lgo').disabled = false; });
+  };
+  $('lgo').onclick = go;
+  $('lpw').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+function logout(quiet) {
+  if (token && !quiet) rpc('lc_logout', { p_token: token }).catch(() => {});
+  token = null; store.set('lc_token', null); home = null;
+  location.hash = ''; renderLogin();
+}
+
+/* ===== 첫 화면: 방 카드 ===== */
+function loadHome() {
+  return call('lc_home').then(h => {
+    home = h;
+    $('who').innerHTML = esc(h.me) + (h.super ? ' (최종관리자)' : '') + '<button id="out">로그아웃</button>';
+    $('out').onclick = () => logout();
+    return h;
+  });
+}
+function cardHtml(r) {
+  const s = r.stats || {};
+  return `<button class="room s${r.stage}" data-stage="${r.stage}" data-id="${esc(r.id)}">
+    <div class="badge">${STAGE[r.stage]}</div><div class="nm">${esc(r.name)}</div>
+    <div class="nums"><span>👥 ${s.members || 0}명</span><span class="ok">이번 주 다 채움 ${s.full || 0}</span>
+    <span class="${s.risk ? 'bad' : ''}">위험 ${s.risk || 0}</span><span>오늘 기록 ${s.today || 0}</span></div></button>`;
+}
+function renderHome() {
+  const h = home;
+  let body = '';
+  if (h.super) {
+    // 최종관리자: 관리자마다 묶어서
+    const by = {};
+    h.rooms.forEach(r => (by[r.admin] = by[r.admin] || []).push(r));
+    body = Object.keys(by).sort().map(a => `<div class="owner">${esc(a)}님의 방</div><div class="grid">${by[a].map(cardHtml).join('')}</div>`).join('');
+  } else {
+    body = h.rooms.length ? `<div class="grid">${h.rooms.map(cardHtml).join('')}</div>` : '<p class="hint">아직 운영하는 방이 없어요. 아래에서 새 방을 만들어 주세요.</p>';
+  }
+  $('app').innerHTML = (body || '<p class="hint">방이 없어요.</p>') +
+    `<div class="card" style="margin-top:18px"><h2>➕ 새 방 만들기</h2><div class="newroom">
+      <div><label for="nStage">단계</label><select id="nStage"><option value="1">1단계 · 운동방 (오운완 인증)</option><option value="2">2단계 · 생활개선 (건강 기록 조)</option></select></div>
+      <div><label for="nName">방 이름</label><input id="nName" placeholder="예: 새벽"></div>
+      ${h.super ? `<div class="full"><label for="nAdmin">관리자</label><select id="nAdmin">${h.admins.map(a => `<option value="${a.id}"${a.name === h.me ? ' selected' : ''}>${esc(a.name)}</option>`).join('')}</select></div>` : ''}
+      <div class="full"><button class="go" id="nGo">만들기</button></div></div>
+      <p class="sub">1단계 방은 만들면 참가자 주소가 생겨요. 2단계 조는 초대 코드로 건강 기록에 들어와요.</p></div>`;
+  $('app').querySelectorAll('.room').forEach(b => b.onclick = () => { location.hash = (b.dataset.stage === '1' ? 'room=' : 'group=') + b.dataset.id; });
+  $('nGo').onclick = () => {
+    const name = $('nName').value.trim();
+    if (!name) return showMsg('err', '방 이름을 적어 주세요.');
+    $('nGo').disabled = true;
+    call('lc_new_room', { p_stage: +$('nStage').value, p_name: name, p_admin: h.super ? $('nAdmin').value : null }).then(r => {
+      showMsg('ok', '「' + name + '」 방을 만들었어요.');
+      location.hash = (r.stage === 1 ? 'room=' : 'group=') + r.id;
+    }).catch(fail).finally(() => { if ($('nGo')) $('nGo').disabled = false; });
+  };
+}
+
+/* ===== 공통 ===== */
+function md(ymd) { const p = ymd.split('-'); return (+p[1]) + '/' + (+p[2]); }
+function addDays(ymd, n) {
+  const p = ymd.split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n));
+  return d.toISOString().slice(0, 10);
+}
+function sundayOf(d) { return addDays(d, -new Date(d + 'T00:00:00Z').getUTCDay()); }
+const wd = d => '일월화수목금토'[new Date(d + 'T00:00:00Z').getUTCDay()];
+const two = (l, s) => '<span class="l">' + l + '</span><span class="s">' + s + '</span>';
+function urlBox(url, note) {
+  return `<div class="url"><input readonly value="${esc(url)}"><button data-copy="${esc(url)}">복사</button></div>${note ? '<p class="sub">' + note + '</p>' : ''}`;
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-copy]');
+  if (!b) return;
+  const done = () => { b.textContent = '복사됨 ✓'; setTimeout(() => b.textContent = '복사', 1500); };
+  (navigator.clipboard ? navigator.clipboard.writeText(b.dataset.copy) : Promise.reject()).then(done).catch(() => { b.previousElementSibling.select(); document.execCommand('copy'); done(); });
+});
+function backBtn() { return '<button class="back" onclick="location.hash=\'\'">◀ 내 방 목록</button>'; }
+
+/* ===== 1단계 상세: 운동방 (옛 히어로 관리자 화면) ===== */
+let room = null; // { id, name }
+function getWeek(weekStart) {
+  const guess = weekStart || sundayOf(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }));
+  return call('lc_room_data', { p_room: room.id, p_from: addDays(guess, -49), p_to: addDays(guess, 6) }).then(d => {
+    room.name = d.room.name;
+    const start = weekStart || sundayOf(d.today);
+    const days = [...Array(7)].map((_, i) => addDays(start, i));
+    const changes = {};
+    d.changes.forEach(c => (changes[c.name] = changes[c.name] || []).push(c));
+    const goalFor = (m, wk) => {
+      let g = m.goal, off = false;
+      (changes[m.name] || []).forEach(c => {
+        if (c.from > wk) return;
+        if (c.goal === 0) { if (c.from === wk) off = true; }
+        else { g = c.goal; if (c.from === wk) off = false; }
+      });
+      return off ? 0 : g;
+    };
+    const done = {};
+    d.records.forEach(([name, date]) => { if (date >= days[0] && date <= days[6]) (done[name] = done[name] || {})[date] = true; });
+    const members = d.members.map(m => ({ name: m.name, goal: goalFor(m, start) }));
+    return { today: d.today, weekStart: start, days, members, done, all: d.all, rounds: d.rounds, next: nextInfo(d) };
+  });
+}
+function nextInfo(d) {
+  const r = d.rounds.filter(x => x.start <= d.today).pop();
+  if (!r || d.today < sundayOf(r.end)) return null;
+  const n = parseInt(r.name, 10), choices = {};
+  (d.nextChoices || []).forEach(c => { if (c.round === r.name) choices[c.name] = c.choice; });
+  return { round: r.name, label: n ? (n % 12 + 1) + '월' : '다음 달', choices };
+}
+function tableHtml(w) {
+  let h = '<table><colgroup><col class="c-name"><col class="c-goal">' + '<col>'.repeat(w.days.length) +
+          '<col class="c-rest"></colgroup><thead><tr class="title"><td colspan="' + (w.days.length + 3) +
+          '">💪 ' + esc(room.name) + ' 운동 챌린지</td></tr><tr><th>' + two('참가자', '이름') + '</th><th>결단</th>';
+  w.days.forEach(d => h += '<th class="' + (d === w.today ? 'today' : '') + '">' + two(md(d), (+d.slice(8)) + '<small>' + wd(d) + '</small>') + '</th>');
+  h += '<th>' + two('남은 횟수', '남은') + '</th></tr></thead><tbody>';
+  w.members.forEach(m => {
+    const mine = w.done[m.name] || {};
+    let cnt = 0;
+    h += '<tr><td class="name">' + esc(m.name) + '</td><td class="goal">' + (m.goal ? two('주 ' + m.goal + '회', m.goal + '회') : '휴무') + '</td>';
+    w.days.forEach(d => { const on = !!mine[d]; if (on) cnt++;
+      h += '<td class="d' + (on ? ' on' : '') + '">' + (on ? two('오운완', '✔') : '') + '</td>'; });
+    const rest = Math.max(0, m.goal - cnt);
+    const cls = !m.goal ? 'off' : rest === 0 ? 'zero' : (cnt === 0 ? 'none' : '');
+    h += '<td class="rest ' + cls + '">' + (m.goal ? rest + '회' : '휴무') + '</td></tr>';
+  });
+  return h + '</tbody></table>';
+}
+function nextHtml(w) {
+  if (!w.next) return '';
+  const who = c => w.members.filter(m => (w.next.choices[m.name] || '') === c).map(m => esc(m.name));
+  const row = (cls, title, names) => '<div class="row ' + cls + '"><b>' + title + ' ' + names.length + '명</b><br>' + (names.join(', ') || '-') + '</div>';
+  const go = who('go'), rest = who('rest'), none = who('');
+  return '<h3>🙋 ' + esc(w.next.label) + ' 참여 응답 (' + (go.length + rest.length) + '/' + w.members.length + '명)</h3>' +
+         row('go', '💪 도전', go) + row('rest', '🌴 쉼', rest) + row('', '❔ 아직 응답 안 함', none);
+}
+function renderRoom(w) {
+  state = w;
+  const on = w.all.filter(m => m.active), off = w.all.filter(m => !m.active);
+  const row = (m, cls, txt) => `<div class="who-row"><span>${esc(m.name)} <small>주 ${m.goal}회</small></span><button class="${cls}" data-name="${esc(m.name)}">${txt}</button></div>`;
+  const last = w.rounds[w.rounds.length - 1];
+  const nextStart = last ? addDays(last.end, 1) : sundayOf(w.today);
+  $('app').innerHTML = backBtn() + `
+    <div class="card"><h2>💪 ${esc(room.name)} <span class="sub">${STAGE[1]}</span></h2>
+      <label>참가자 주소 (단톡방에 올려 주세요 · 로그인 없이 이름만 골라요)</label>${urlBox(ROOM_URL(room.id))}</div>
+    <div class="card"><h2>📋 전체 표</h2>
+      <div class="bar"><button class="nav" id="prev">◀ 지난주</button><span class="wk">${md(w.days[0])} ~ ${md(w.days[6])}</span>
+        <button class="nav" id="next"${w.days[6] >= w.today ? ' disabled' : ''}>다음주 ▶</button></div>
+      <div class="scroll"><div id="board">${tableHtml(w)}</div></div>
+      <div id="nextBox">${nextHtml(w)}</div>
+      <div class="bar" style="margin-top:10px;margin-bottom:0"><span class="foot">불러온 시각 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+        <button class="save" id="save">📷 표 이미지 만들기</button></div></div>
+    <div class="card" id="manage"><h2>👥 참가자 관리</h2>
+      <h3>➕ 새 참가자</h3><div class="add"><input type="text" id="newName" placeholder="이름"><select id="newGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">주 ${n}회</option>`).join('')}</select><button class="go" id="addBtn">추가</button></div>
+      <h3>🌴 쉬는 중 ${off.length}명</h3>${off.map(m => row(m, 'back2', '재참가')).join('') || '<div class="who-row">없음</div>'}
+      <h3>💪 참가 중 ${on.length}명</h3>${on.map(m => row(m, 'out', '빼기')).join('') || '<div class="who-row">없음</div>'}</div>
+    <div class="card"><h2>🗓 기수</h2>
+      ${w.rounds.slice().reverse().map(r => `<div class="who-row"><span><b>${esc(r.name)}</b> <small>${md(r.start)}(${wd(r.start)}) ~ ${md(r.end)}(${wd(r.end)})</small></span></div>`).join('') || '<p class="sub">아직 기수가 없어요. 기수가 있어야 주차별 결과와 다음 달 응답이 나와요.</p>'}
+      <h3>➕ 새 기수</h3><div class="add3">
+        <div><label for="rName">이름</label><input id="rName" placeholder="예: 12월"></div>
+        <div><label for="rStart">시작 (주일)</label><input type="date" id="rStart" value="${nextStart}"></div>
+        <div><label for="rEnd">끝 (토요일)</label><input type="date" id="rEnd" value="${addDays(nextStart, 34)}"></div>
+        <button class="go" id="rGo">넣기</button></div>
+      <p class="sub">기본은 지난 기수 다음 주일부터 5주예요. 새 기수를 넣으면 참가자에게 다음 달 묻기가 멈춰요.</p></div>`;
+  $('prev').onclick = () => loadRoom(addDays(w.weekStart, -7));
+  $('next').onclick = () => loadRoom(addDays(w.weekStart, 7));
+  $('save').onclick = saveShot;
+  $('manage').onclick = ev => {
+    const b = ev.target.closest('button');
+    if (!b) return;
+    if (b.id === 'addBtn') {
+      const name = $('newName').value.trim();
+      if (!name) return showMsg('err', '새 참가자 이름을 적어 주세요.');
+      return setMember(name, +$('newGoal').value, true);
+    }
+    if (b.classList.contains('back2')) return setMember(b.dataset.name, null, true);
+    if (confirm(b.dataset.name + '님을 참가자에서 뺄까요? 기록은 남아요.')) setMember(b.dataset.name, null, false);
+  };
+  $('rGo').onclick = () => {
+    const name = $('rName').value.trim();
+    if (!name) return showMsg('err', '기수 이름을 적어 주세요. (예: 12월)');
+    $('rGo').disabled = true;
+    call('lc_add_round', { p_room: room.id, p_name: name, p_start: $('rStart').value, p_end: $('rEnd').value })
+      .then(() => { showMsg('ok', name + ' 기수를 넣었어요.'); return loadRoom(w.weekStart); }).catch(fail)
+      .finally(() => { if ($('rGo')) $('rGo').disabled = false; });
+  };
+}
+function setMember(name, goal, active) {
+  return call('lc_set_member', { p_room: room.id, p_name: name, p_goal: goal, p_active: active })
+    .then(() => { showMsg('ok', '저장했어요.'); return loadRoom(state.weekStart); }).catch(fail);
+}
+function loadRoom(weekStart) {
+  return getWeek(weekStart || null).then(renderRoom);
+}
+let shotFile = null;
+function saveShot() {
+  const btn = $('save'); btn.disabled = true; btn.textContent = '만드는 중…';
+  $('shotArea').innerHTML = tableHtml(state);
+  const fname = room.name + '운동챌린지_' + md(state.days[0]).replace('/', '-') + '.png';
+  document.fonts.ready
+    .then(() => html2canvas($('shotArea'), { scale: 2, backgroundColor: '#ffffff', windowWidth: 1000 }))
+    .then(c => {
+      const url = c.toDataURL('image/png');
+      $('shot').src = url; $('dl').href = url; $('dl').download = fname;
+      $('modal').classList.add('show');
+      return new Promise(ok => c.toBlob(ok, 'image/png'));
+    })
+    .then(blob => {
+      shotFile = new File([blob], fname, { type: 'image/png' });
+      $('share').style.display = navigator.canShare && navigator.canShare({ files: [shotFile] }) ? '' : 'none';
+    })
+    .finally(() => { btn.disabled = false; btn.textContent = '📷 표 이미지 만들기'; });
+}
+$('share').onclick = () => navigator.share({ files: [shotFile] }).catch(e => { if (e.name !== 'AbortError') $('share').style.display = 'none'; });
+$('close').onclick = () => $('modal').classList.remove('show');
+
+/* ===== 2단계 상세: 건강 기록 그 조 화면 ===== */
+const FACES = ['😫', '😐', '😄'];
+const hm = t => t ? String(t).slice(0, 5) : '-';
+function recordTable(rows) {
+  return `<div class="scroll"><table class="tbl"><tr><th>날짜</th><th>기상</th><th>취침</th><th>컨디션</th><th>운동</th><th>식단</th><th>해제</th></tr>
+    ${(rows || []).map(r => `<tr><td>${r.day.slice(5).replace('-', '/')}</td><td>${hm(r.wake)}</td><td>${hm(r.bed)}</td>
+      <td>${r.condition ? FACES[r.condition - 1] : '-'}</td><td>${r.exercise ? '✅' : '-'}</td><td>${r.diet ? '✅' : '-'}</td>
+      <td class="why-td">${(r.unlocks || []).map(u => esc(u.at + ' ' + u.note)).join('<br>') || '-'}</td></tr>`).join('')}</table></div>`;
+}
+function loadGroup(id) {
+  return call('lc_group', { p_group: +id }).then(g => {
+    $('app').innerHTML = backBtn() + `
+      <div class="card"><h2>🌱 ${esc(g.name)} <span class="sub">${STAGE[2]}</span></h2>
+        <label>참가자 주소 (건강 기록 · 앱도 같음)</label>${urlBox(LIFE_URL)}
+        <h3>🎟 초대 코드 (한 번 쓰면 끝)</h3>
+        ${g.invites.map(i => `<div class="who-row"><span class="code">${esc(i.code)}</span><span>${i.leader ? '리더용' : '조원용'} <button data-copy="${esc(i.code)}">복사</button></span></div>`).join('') || '<p class="sub">남은 초대 코드가 없어요.</p>'}
+        <div class="bar" style="margin-top:8px"><button class="go" id="inv">➕ 조원 초대 코드</button><button id="invL">리더 초대 코드</button></div>
+        <p class="sub">새 사람은 주소에서 「초대 코드로 가입하기」 → 초대 코드 + 닉네임 + 비밀번호로 들어와요.</p></div>
+      <div class="card"><h2>👥 조원 ${g.members.length}명 <span class="sub">최근 2주 · 여기 내용은 다른 곳에 옮기지 않아요</span></h2>
+        ${g.members.map(m => `<h3>${esc(m.nickname)}${m.leader ? ' ⭐리더' : ''} <span class="sub">운동 목표 주 ${m.goal || '-'}일</span></h3>${recordTable(m.records)}`).join('') || '<p class="sub">아직 조원이 없어요. 초대 코드를 만들어 보내 주세요.</p>'}</div>`;
+    const inv = leader => call('lc_group_invite', { p_group: +id, p_leader: leader }).then(r => { showMsg('ok', '초대 코드 ' + r.code + ' 를 만들었어요.'); return loadGroup(id); }).catch(fail);
+    $('inv').onclick = () => inv(false);
+    $('invL').onclick = () => inv(true);
+  });
+}
+
+/* ===== 길 찾기 (#room=… / #group=…) ===== */
+function route() {
+  if (!token) return renderLogin();
+  showMsg('', '');
+  const h = location.hash.slice(1), m = h.match(/^(room|group)=(.+)$/);
+  window.scrollTo(0, 0);
+  const ready = home ? Promise.resolve(home) : loadHome();
+  ready.then(() => {
+    if (!m) { $('app').innerHTML = '<p class="hint">불러오는 중…</p>'; return loadHome().then(renderHome); }
+    $('app').innerHTML = backBtn() + '<p class="hint">불러오는 중…</p>';
+    if (m[1] === 'room') { room = { id: decodeURIComponent(m[2]), name: '' }; return loadRoom(); }
+    return loadGroup(decodeURIComponent(m[2]));
+  }).catch(e => { if (token) { $('app').innerHTML = backBtn(); fail(e); } });
+}
+window.onhashchange = route;
+route();
+</script>
+</body>
+</html>
