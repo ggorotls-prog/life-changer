@@ -161,6 +161,7 @@
   .cn::after { content: ''; position: absolute; right: -90px; top: -90px; width: 260px; height: 260px; border-radius: 50%; background: rgba(224,102,102,.13); }
   .cn-top { display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; color: #b5523f; position: relative; z-index: 1; }
   .cn-big { font-size: 96px; font-weight: 800; color: #e06666; letter-spacing: -0.04em; line-height: 1; margin: 48px 0 14px; }
+  .cn-big.long { font-size: 68px; margin-top: 60px; }
   .cn-t { font-size: 33px; font-weight: 800; line-height: 1.32; letter-spacing: -0.03em; word-break: keep-all; }
   .cn-b { font-size: 19px; font-weight: 500; line-height: 1.65; color: #4a352d; margin-top: 18px; word-break: keep-all; }
   .cn-do { position: absolute; left: 40px; right: 40px; bottom: 96px; background: #fff; border-radius: 16px; padding: 16px 18px;
@@ -523,12 +524,21 @@ function cardNewsHtml(c) {
   const p = state.today.split('-');
   return `<div class="cn">
     <div class="cn-top"><span>💪 ${esc(room.name)} 운동방 · 오늘의 한 장</span><span>${+p[1]}월 ${+p[2]}일 ${wd(state.today)}요일</span></div>
-    <div class="cn-big">${esc(c.n)}</div>
+    <div class="cn-big${c.n.length > 7 ? ' long' : ''}">${esc(c.n)}</div>
     <div class="cn-t">${esc(c.t)}</div>
     <div class="cn-b">${esc(c.b)}</div>
     <div class="cn-do"><b>오늘 해 볼 것</b>${esc(c.d)}</div>
     <div class="cn-s">${esc(c.s)}</div>
     <div class="cn-foot">🌱 라이프 체인저</div></div>`;
+}
+// 설명이 「오늘 해 볼 것」 칸에 닿으면 설명·제목 글자를 조금씩 줄인다
+function fitCard() {
+  const el = $('cardArea').firstElementChild;
+  if (!el) return;
+  const b = el.querySelector('.cn-b'), t = el.querySelector('.cn-t'), d = el.querySelector('.cn-do');
+  for (let s = 19, ts = 33; s >= 15 && b.getBoundingClientRect().bottom > d.getBoundingClientRect().top - 12; s--, ts--) {
+    b.style.fontSize = s + 'px'; t.style.fontSize = ts + 'px';
+  }
 }
 const toFile = (c, name) => new Promise(ok => c.toBlob(b => ok(new File([b], name, { type: 'image/png' })), 'image/png'));
 function makeShot() {
@@ -536,6 +546,7 @@ function makeShot() {
   const card = todayCard();
   $('shotArea').innerHTML = tableHtml(state);
   $('cardArea').innerHTML = card ? cardNewsHtml(card) : '';
+  fitCard();
   const tag = md(state.today).replace('/', '-');
   const job = shotJob = document.fonts.ready
     .then(() => html2canvas($('shotArea'), { scale: 2, backgroundColor: '#ffffff', windowWidth: 1000 }))
