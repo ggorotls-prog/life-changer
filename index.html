@@ -71,6 +71,15 @@
   .hero .steps span { background: rgba(255,255,255,.22); border-radius: 999px; padding: 4px 10px; }
   .hero .steps b { font-size: 15px; }
   .room .adm { float: right; font-size: 12px; color: var(--sub); font-weight: 500; }
+  /* 단계 끝 「새 방」 칸: 누르면 그 자리에서 이름 적기 */
+  .addroom { border: 2px dashed #e3b4b4; border-radius: 14px; padding: 12px; display: flex; align-items: center; min-height: 104px; }
+  .addroom.s2 { border-color: #a9d3bb; }
+  .addroom .open { background: none; width: 100%; color: var(--s1); font-size: 16px; text-align: center; }
+  .addroom.s2 .open { color: var(--s2); }
+  .addroom .open small { display: block; font-size: 12px; color: var(--sub); font-weight: 500; margin-top: 4px; }
+  .addroom .form { display: none; width: 100%; gap: 8px; flex-direction: column; }
+  .addroom.on .open { display: none; } .addroom.on .form { display: flex; }
+  .addroom.s2 .go { background: var(--s2); }
   .newroom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .newroom .full { grid-column: 1 / -1; }
 
@@ -254,39 +263,43 @@ function cardHtml(r) {
 }
 function renderHome() {
   const h = home;
-  // 맨 위: 나를 통해 라이프 체인지 중인 사람 수 (내가 보는 방 인원 합, 1단계는 참가 중인 사람만)
+  // 맨 위: 나를 통해 삶이 변하는 사람 수 (내가 보는 방 인원 합, 1단계는 참가 중인 사람만)
   const sum = st => h.rooms.filter(r => !st || r.stage === st).reduce((n, r) => n + ((r.stats || {}).members || 0), 0);
   const hero = `<div class="hero"><div class="lead">나를 통해 지금</div>
     <div class="big"><b id="cnt">0</b>명의 삶이 변하는 중 🌱</div>
     <div class="steps"><span>💪 1단계 운동방 <b>${sum(1)}</b>명</span><span>🌿 2단계 생활개선 <b>${sum(2)}</b>명</span><span>🔥 3단계 캠프 곧</span></div></div>`;
-  // 단계끼리 모으고, 단계마다 제목 + 구분선. 최종관리자는 카드에 관리자 이름이 보인다.
-  const body = hero + ([1, 2].map(st => {
+  // 단계끼리 모으고, 단계마다 제목 + 구분선 + 그 단계 끝에 「새 방 만들기」 칸 (2026-11-14 룡)
+  const NEW = { 1: ['➕ 새 운동방', '만들면 참가자 주소가 생겨요'], 2: ['➕ 새 생활개선 조', '초대 코드로 건강 기록에 들어와요'] };
+  const adminSel = st => h.super ? `<select class="nAdmin" data-st="${st}">${h.admins.map(a => `<option value="${a.id}"${a.name === h.me ? ' selected' : ''}>관리자 ${esc(a.name)}</option>`).join('')}</select>` : '';
+  const body = hero + [1, 2].map(st => {
     const list = h.rooms.filter(r => r.stage === st);
-    if (!list.length) return '';
-    return `<div class="stage s${st}">${STAGE[st]}<small>${list.length}개</small></div><div class="grid">${list.map(cardHtml).join('')}</div>`;
-  }).join('') || '<p class="hint">아직 운영하는 방이 없어요. 아래에서 새 방을 만들어 주세요.</p>');
-  $('app').innerHTML = (body || '<p class="hint">방이 없어요.</p>') +
-    `<div class="card" style="margin-top:18px"><h2>➕ 새 방 만들기</h2><div class="newroom">
-      <div><label for="nStage">단계</label><select id="nStage"><option value="1">1단계 · 운동방 (오운완 인증)</option><option value="2">2단계 · 생활개선 (건강 기록 조)</option></select></div>
-      <div><label for="nName">방 이름</label><input id="nName" placeholder="예: 새벽"></div>
-      ${h.super ? `<div class="full"><label for="nAdmin">관리자</label><select id="nAdmin">${h.admins.map(a => `<option value="${a.id}"${a.name === h.me ? ' selected' : ''}>${esc(a.name)}</option>`).join('')}</select></div>` : ''}
-      <div class="full"><button class="go" id="nGo">만들기</button></div></div>
-      <p class="sub">1단계 방은 만들면 참가자 주소가 생겨요. 2단계 조는 초대 코드로 건강 기록에 들어와요.</p></div>`;
+    return `<div class="stage s${st}">${STAGE[st]}<small>${list.length}개</small></div><div class="grid">${list.map(cardHtml).join('')}
+      <div class="addroom s${st}" data-st="${st}"><button class="open">${NEW[st][0]}<small>${NEW[st][1]}</small></button>
+        <div class="form"><input class="nName" placeholder="방 이름 (예: 새벽)">${adminSel(st)}<button class="go nGo">만들기</button></div></div></div>`;
+  }).join('');
+  $('app').innerHTML = body;
   // 숫자가 0부터 올라가며 보이게
   const total = sum(), t0 = performance.now();
   const tick = now => { const p = Math.min(1, (now - t0) / 900), el = $('cnt');
     if (!el) return; el.textContent = Math.round(total * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
   $('app').querySelectorAll('.room').forEach(b => b.onclick = () => { location.hash = (b.dataset.stage === '1' ? 'room=' : 'group=') + b.dataset.id; });
-  $('nGo').onclick = () => {
-    const name = $('nName').value.trim();
-    if (!name) return showMsg('err', '방 이름을 적어 주세요.');
-    $('nGo').disabled = true;
-    call('lc_new_room', { p_stage: +$('nStage').value, p_name: name, p_admin: h.super ? $('nAdmin').value : null }).then(r => {
-      showMsg('ok', '「' + name + '」 방을 만들었어요.');
-      location.hash = (r.stage === 1 ? 'room=' : 'group=') + r.id;
-    }).catch(fail).finally(() => { if ($('nGo')) $('nGo').disabled = false; });
-  };
+  $('app').querySelectorAll('.addroom').forEach(box => {
+    const st = +box.dataset.st, name = box.querySelector('.nName'), go = box.querySelector('.nGo');
+    box.querySelector('.open').onclick = () => { box.classList.add('on'); name.focus(); };
+    const make = () => {
+      const v = name.value.trim();
+      if (!v) return showMsg('err', '방 이름을 적어 주세요.');
+      go.disabled = true;
+      const adm = box.querySelector('.nAdmin');
+      call('lc_new_room', { p_stage: st, p_name: v, p_admin: adm ? adm.value : null }).then(r => {
+        showMsg('ok', '「' + v + '」 방을 만들었어요.');
+        location.hash = (r.stage === 1 ? 'room=' : 'group=') + r.id;
+      }).catch(fail).finally(() => { go.disabled = false; });
+    };
+    go.onclick = make;
+    name.onkeydown = e => { if (e.key === 'Enter') make(); };
+  });
 }
 
 /* ===== 공통 ===== */
