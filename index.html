@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://trlnatdkebjvgiqneulv.supabase.co" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="cards.js"></script>
 <style>
   :root {
     --red: #e06666; --pink: #f4cccc; --done: #f9cb9c; --zero: #b7e1cd; --left: #e69138;
@@ -151,6 +152,22 @@
     .newroom { grid-template-columns: 1fr; }
   }
   #shotArea { position: fixed; left: -10000px; top: 0; width: 780px; background: #fff; }
+  /* 오늘의 카드뉴스 (540×675 → 이미지 1080×1350) */
+  #cardArea { position: fixed; left: -10000px; top: 0; }
+  #cardPrev h3 { margin-top: 16px; } #cardPrev img { width: 100%; max-width: 360px; border-radius: 12px; display: block; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  .modal img + img { margin-top: 8px; }
+  .cn { width: 540px; height: 675px; box-sizing: border-box; padding: 40px 40px 30px; position: relative; overflow: hidden;
+        background: linear-gradient(160deg, #fff6ee 0%, #fde3d3 55%, #f6c7b4 100%); color: #2a1a14; font-family: 'Noto Sans KR', sans-serif; }
+  .cn::after { content: ''; position: absolute; right: -90px; top: -90px; width: 260px; height: 260px; border-radius: 50%; background: rgba(224,102,102,.13); }
+  .cn-top { display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; color: #b5523f; position: relative; z-index: 1; }
+  .cn-big { font-size: 96px; font-weight: 800; color: #e06666; letter-spacing: -0.04em; line-height: 1; margin: 48px 0 14px; }
+  .cn-t { font-size: 33px; font-weight: 800; line-height: 1.32; letter-spacing: -0.03em; word-break: keep-all; }
+  .cn-b { font-size: 19px; font-weight: 500; line-height: 1.65; color: #4a352d; margin-top: 18px; word-break: keep-all; }
+  .cn-do { position: absolute; left: 40px; right: 40px; bottom: 96px; background: #fff; border-radius: 16px; padding: 16px 18px;
+           font-size: 19px; font-weight: 700; line-height: 1.5; box-shadow: 0 4px 14px rgba(181,82,63,.12); word-break: keep-all; }
+  .cn-do b { display: block; font-size: 14px; color: #e06666; margin-bottom: 4px; }
+  .cn-s { position: absolute; left: 40px; right: 40px; bottom: 56px; font-size: 12px; color: #8a6a5e; word-break: keep-all; }
+  .cn-foot { position: absolute; left: 40px; bottom: 26px; font-size: 14px; font-weight: 800; color: #4a9b6e; }
   .foot { font-size: 12px; color: var(--sub); }
   #nextBox { margin-top: 14px; font-size: 15px; line-height: 1.6; }
   #nextBox .row { padding: 8px 10px; border-radius: 10px; margin-bottom: 6px; background: #f7f7f7; }
@@ -188,9 +205,11 @@
   <div class="msg" id="msg"></div>
 </div>
 <div id="shotArea"></div>
+<div id="cardArea"></div>
 <div class="modal" id="modal">
   <div class="box">
     <img id="shot" alt="표 이미지">
+    <img id="shot2" alt="오늘의 카드뉴스" hidden>
     <p>휴대폰은 이미지를 꾹 눌러 저장하거나 공유하세요.</p>
     <div class="row">
       <a id="dl" download="운동챌린지.png">내려받기</a>
@@ -443,7 +462,7 @@ function renderRoom(w) {
       <div class="scroll"><div id="board">${tableHtml(w)}</div></div>${w.days[6] >= w.today ? '<div class="legend">남은 횟수<i style="background:#cc0000"></i>오늘 안 하면 못 채움<i style="background:var(--left)"></i>하루 여유<i style="background:var(--zero)"></i>달성</div>' : ''}
       <div id="nextBox">${nextHtml(w)}</div>
       <div class="bar" style="margin-top:10px;margin-bottom:0"><span class="foot">불러온 시각 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-        <button class="save" id="save">📤 카톡으로 표 보내기</button></div></div>
+        <button class="save" id="save">📤 카톡으로 표 + 카드 보내기</button></div><div id="cardPrev"></div></div>
     <div class="card" id="manage"><h2>👥 참가자 관리</h2>
       <h3>➕ 새 참가자</h3><div class="add"><input type="text" id="newName" placeholder="이름"><select id="newGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">주 ${n}회</option>`).join('')}</select><button class="go" id="addBtn">추가</button></div>
       <h3>🌴 쉬는 중 ${off.length}명</h3>${off.map(m => row(m, 'back2', '재참가')).join('') || '<div class="who-row">없음</div>'}
@@ -489,30 +508,63 @@ function setMember(name, goal, active) {
 function loadRoom(weekStart) {
   return getWeek(weekStart || null).then(renderRoom);
 }
-// 표 이미지는 카톡으로만 보낸다(2026-11-14 룡): 표를 그릴 때 이미지를 미리 만들어 두고,
-// 버튼을 누르면 바로 공유 창(카톡 고르기)을 연다. 공유가 안 되는 PC에서만 이미지 창(꾹 눌러 저장)을 띄운다.
-let shotFile = null, shotUrl = '', shotJob = null;
+// 표 이미지는 카톡으로만 보낸다(2026-11-14 룡): 표와 「오늘의 카드뉴스」(격려·동기부여, 1단계 = 틈틈이 하는 운동의 유익)를
+// 표를 그릴 때 미리 만들어 두고, 버튼을 누르면 두 장을 한 번에 공유 창(카톡 고르기)으로 연다.
+// 공유가 안 되는 PC에서만 이미지 창(꾹 눌러 저장)을 띄운다. 카드 문구는 cards.js (날짜마다 한 장씩 돌아감).
+let shotFile = null, shotUrl = '', cardFile = null, cardUrl = '', shotJob = null;
+function todayCard() {
+  const list = window.CARDS1 || [];
+  if (!list.length) return null;
+  const base = Date.UTC(2026, 10, 15), p = state.today.split('-').map(Number);
+  const n = Math.round((Date.UTC(p[0], p[1] - 1, p[2]) - base) / 864e5);
+  return list[((n % list.length) + list.length) % list.length];
+}
+function cardNewsHtml(c) {
+  const p = state.today.split('-');
+  return `<div class="cn">
+    <div class="cn-top"><span>💪 ${esc(room.name)} 운동방 · 오늘의 한 장</span><span>${+p[1]}월 ${+p[2]}일 ${wd(state.today)}요일</span></div>
+    <div class="cn-big">${esc(c.n)}</div>
+    <div class="cn-t">${esc(c.t)}</div>
+    <div class="cn-b">${esc(c.b)}</div>
+    <div class="cn-do"><b>오늘 해 볼 것</b>${esc(c.d)}</div>
+    <div class="cn-s">${esc(c.s)}</div>
+    <div class="cn-foot">🌱 라이프 체인저</div></div>`;
+}
+const toFile = (c, name) => new Promise(ok => c.toBlob(b => ok(new File([b], name, { type: 'image/png' })), 'image/png'));
 function makeShot() {
-  shotFile = null;
+  shotFile = cardFile = null;
+  const card = todayCard();
   $('shotArea').innerHTML = tableHtml(state);
-  const fname = room.name + '운동챌린지_' + md(state.days[0]).replace('/', '-') + '.png';
+  $('cardArea').innerHTML = card ? cardNewsHtml(card) : '';
+  const tag = md(state.today).replace('/', '-');
   const job = shotJob = document.fonts.ready
     .then(() => html2canvas($('shotArea'), { scale: 2, backgroundColor: '#ffffff', windowWidth: 1000 }))
-    .then(c => { shotUrl = c.toDataURL('image/png'); return new Promise(ok => c.toBlob(ok, 'image/png')); })
-    .then(blob => { if (job === shotJob) shotFile = new File([blob], fname, { type: 'image/png' }); });
+    .then(c => { shotUrl = c.toDataURL('image/png'); return toFile(c, room.name + '운동챌린지_' + md(state.days[0]).replace('/', '-') + '.png'); })
+    .then(f => { if (job === shotJob) shotFile = f; })
+    .then(() => card ? html2canvas($('cardArea').firstElementChild, { scale: 2, backgroundColor: null }) : null)
+    .then(c => c ? (cardUrl = c.toDataURL('image/png'), toFile(c, '오늘의한장_' + tag + '.png')) : null)
+    .then(f => {
+      if (job !== shotJob) return;
+      cardFile = f;
+      const pv = $('cardPrev'); if (pv) pv.innerHTML = f ? `<h3>📰 오늘의 카드뉴스 (표와 같이 보내져요)</h3><img src="${cardUrl}" alt="오늘의 카드뉴스">` : '';
+    });
   return job;
 }
-function showShot() { $('shot').src = shotUrl; $('dl').href = shotUrl; $('modal').classList.add('show'); }
+function showShot() {
+  $('shot').src = shotUrl; $('dl').href = shotUrl;
+  $('shot2').src = cardUrl; $('shot2').hidden = !cardFile;
+  $('modal').classList.add('show');
+}
 function saveShot() {
   const btn = $('save');
-  const canShare = f => navigator.share && navigator.canShare && navigator.canShare({ files: [f] });
   if (shotFile) {
-    if (!canShare(shotFile)) return showShot();
-    return navigator.share({ files: [shotFile] }).catch(e => { if (e.name !== 'AbortError') showShot(); });
+    const files = cardFile ? [shotFile, cardFile] : [shotFile];
+    if (!(navigator.share && navigator.canShare && navigator.canShare({ files }))) return showShot();
+    return navigator.share({ files }).catch(e => { if (e.name !== 'AbortError') showShot(); });
   }
   // 아직 만드는 중이면 끝난 뒤 한 번 더 누르게
   btn.disabled = true; btn.textContent = '이미지 준비 중…';
-  (shotJob || makeShot()).then(() => { btn.disabled = false; btn.textContent = '📤 카톡으로 표 보내기'; showMsg('ok', '준비됐어요. 한 번 더 눌러 주세요.'); });
+  (shotJob || makeShot()).then(() => { btn.disabled = false; btn.textContent = '📤 카톡으로 표 + 카드 보내기'; showMsg('ok', '준비됐어요. 한 번 더 눌러 주세요.'); });
 }
 $('close').onclick = () => $('modal').classList.remove('show');
 
