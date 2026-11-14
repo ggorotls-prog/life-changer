@@ -165,10 +165,14 @@
   .cn-big.long { font-size: 68px; margin-top: 60px; }
   .cn-t { font-size: 33px; font-weight: 800; line-height: 1.32; letter-spacing: -0.03em; word-break: keep-all; }
   .cn-b { white-space: pre-line; font-size: 19px; font-weight: 500; line-height: 1.65; color: #4a352d; margin-top: 18px; word-break: keep-all; }
-  .cn-do { position: absolute; left: 40px; right: 40px; bottom: 64px; background: #e06666; color: #fff; border-radius: 18px; padding: 18px 22px 20px;
-           font-size: 23px; font-weight: 800; line-height: 1.45; box-shadow: 0 8px 20px rgba(224,102,102,.35); word-break: keep-all; }
-  .cn-do b { display: block; font-size: 15px; font-weight: 700; color: rgba(255,255,255,.9); margin-bottom: 6px; }
-  .cn-s { position: absolute; left: 40px; right: 40px; bottom: 28px; font-size: 12px; color: #8a6a5e; word-break: keep-all; }
+  .cn-do { position: absolute; left: 40px; right: 40px; bottom: 74px; background: #e06666; color: #fff; border-radius: 18px; padding: 18px 20px;
+           display: flex; gap: 16px; align-items: center; box-shadow: 0 8px 20px rgba(224,102,102,.35); word-break: keep-all; }
+  .cn-box { flex: none; width: 34px; height: 34px; border: 3px solid #fff; border-radius: 9px; }
+  .cn-do b { display: block; font-size: 15px; font-weight: 800; color: #ffe4dc; letter-spacing: .04em; }
+  .cn-do .cn-m { display: block; font-size: 22px; font-weight: 800; line-height: 1.35; margin: 2px 0 4px; }
+  .cn-do small { display: block; font-size: 14px; font-weight: 700; color: rgba(255,255,255,.88); }
+  .cn-s { position: absolute; left: 40px; right: 40px; bottom: 22px; font-size: 12.5px; line-height: 1.45; color: #7a5a4e; word-break: keep-all; }
+  .cn-s b { color: #b5523f; font-weight: 800; margin-right: 4px; }
   .cn-foot { position: absolute; left: 40px; bottom: 26px; font-size: 14px; font-weight: 800; color: #4a9b6e; }
   .foot { font-size: 12px; color: var(--sub); }
   #nextBox { margin-top: 14px; font-size: 15px; line-height: 1.6; }
@@ -521,6 +525,11 @@ function todayCard() {
   const n = Math.round((Date.UTC(p[0], p[1] - 1, p[2]) - base) / 864e5);
   return list[((n % list.length) + list.length) % list.length];
 }
+// 근거 줄: 「학술지 연도 · 저자 · 대상 · PubMed 번호」 — 이 연구에서 나온 숫자임을 분명히(2026-11-14 룡)
+function srcLine(c) {
+  const parts = (c.s || '').split(' · '), cite = parts.pop();
+  return cite + (parts.length ? ' · ' + parts.join(' · ') : '') + (c.p ? ' · PubMed ' + c.p : '');
+}
 function cardNewsHtml(c) {
   const p = state.today.split('-');
   return `<div class="cn">
@@ -528,8 +537,8 @@ function cardNewsHtml(c) {
     <div class="cn-big${c.n.length > 7 ? ' long' : ''}">${esc(c.n)}</div>
     <div class="cn-t">${esc(c.t)}</div>
     <div class="cn-b">${esc(c.b)}</div>
-    <div class="cn-do"><b>👉 오늘 오후, 바로 이렇게</b>${esc(c.d)}</div>
-    <div class="cn-s">${esc(c.s)}</div>
+    <div class="cn-do"><i class="cn-box"></i><div><b>오늘 오후 미션</b><span class="cn-m">${esc(c.d)}</span><small>끝내면 오운완 인증 ✅</small></div></div>
+    <div class="cn-s"><b>📚 근거 연구</b> ${esc(srcLine(c))}</div>
     </div>`;
 }
 // 설명이 「오늘 해 볼 것」 칸에 닿으면 설명·제목 글자를 조금씩 줄인다
