@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>라이프 체인저 관리자</title>
+<!-- 관리자 폰에 앱으로 설치(2026-11-16 룡): 이 두 파일이 있어야 크롬이 「앱 설치」를 보여 준다. 없으면 바로가기만 생긴다 -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#e06666">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://trlnatdkebjvgiqneulv.supabase.co" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -592,11 +597,11 @@ const IS_PHONE = /Android|iPhone|iPad/i.test(navigator.userAgent);
 function showImg(url, why) {
   $('shot').src = url; $('dl').href = url; $('shot2').hidden = true;
   const ext = $('ext');
-  ext.hidden = !IN_KAKAO; $('dl').hidden = IS_PHONE;
+  ext.hidden = !IN_KAKAO; $('dl').hidden = IS_PHONE && !IN_KAKAO; // 카톡 안에서는 내려받아 올리는 길도 남긴다(2026-11-16 룡)
   if (IN_KAKAO) ext.href = /android/i.test(navigator.userAgent)
     ? 'intent://' + location.href.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end'
     : 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
-  $('why').textContent = IN_KAKAO ? '카톡 안에서 연 화면은 공유 창이 안 열려요. 「크롬으로 열기」를 누른 뒤 다시 보내 주세요.'
+  $('why').textContent = IN_KAKAO ? '카톡 안에서 연 화면은 공유 창이 안 열려요. 내려받아 카톡방에 올려 주세요. 설치한 앱이나 크롬에서 열면 바로 보낼 수 있어요.'
     : IS_PHONE ? '공유 창이 안 열렸어요(' + (why || '이 브라우저') + '). 이미지를 꾹 눌러 공유하거나 크롬에서 열어 주세요.'
     : 'PC는 공유 창이 없어요. 내려받아 카톡에 끌어다 넣으세요.';
   $('modal').classList.add('show');
@@ -737,6 +742,7 @@ function route() {
 }
 window.onhashchange = route;
 route();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>
