@@ -220,8 +220,9 @@
   <div class="box">
     <img id="shot" alt="표 이미지">
     <img id="shot2" alt="오늘의 카드뉴스" hidden>
-    <p>휴대폰은 이미지를 꾹 눌러 저장하거나 공유하세요.</p>
+    <p id="why">휴대폰은 이미지를 꾹 눌러 공유하세요.</p>
     <div class="row">
+      <a id="ext" hidden>크롬으로 열기</a>
       <a id="dl" download="운동챌린지.png">내려받기</a>
       <button id="close">닫기</button>
     </div>
@@ -584,12 +585,28 @@ function fitCard() {
 const toFile = (c, name) => new Promise(ok => c.toBlob(b => ok(new File([b], name, { type: 'image/png' })), 'image/png'));
 const shoot = (el, opt) => document.fonts.ready.then(() => html2canvas(el, opt));
 const TABLE_OPT = { scale: 2, backgroundColor: '#ffffff', windowWidth: 1000 };
-function showImg(url) { $('shot').src = url; $('dl').href = url; $('shot2').hidden = true; $('modal').classList.add('show'); }
+// 보내려는 이미지는 공유 창이 먼저다. 공유 창이 안 열릴 때만 이 창을 띄우고 이유를 보여 준다(2026-11-16 룡: 「내려받기가 나와」).
+// 카톡 안에서 연 화면은 공유 창이 없어 크롬으로 넘긴다. PC에서만 내려받기.
+const IN_KAKAO = /KAKAOTALK/i.test(navigator.userAgent);
+const IS_PHONE = /Android|iPhone|iPad/i.test(navigator.userAgent);
+function showImg(url, why) {
+  $('shot').src = url; $('dl').href = url; $('shot2').hidden = true;
+  const ext = $('ext');
+  ext.hidden = !IN_KAKAO; $('dl').hidden = IS_PHONE;
+  if (IN_KAKAO) ext.href = /android/i.test(navigator.userAgent)
+    ? 'intent://' + location.href.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end'
+    : 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
+  $('why').textContent = IN_KAKAO ? '카톡 안에서 연 화면은 공유 창이 안 열려요. 「크롬으로 열기」를 누른 뒤 다시 보내 주세요.'
+    : IS_PHONE ? '공유 창이 안 열렸어요(' + (why || '이 브라우저') + '). 이미지를 꾹 눌러 공유하거나 크롬에서 열어 주세요.'
+    : 'PC는 공유 창이 없어요. 내려받아 카톡에 끌어다 넣으세요.';
+  $('modal').classList.add('show');
+}
 // 공유 한 번 = 사진 한 장. 카톡까지 넘겼으면 true
 function shareOne(file, url) {
   const files = [file];
-  if (!(navigator.share && navigator.canShare && navigator.canShare({ files }))) { showImg(url); return Promise.resolve(false); }
-  return navigator.share({ files }).then(() => true).catch(e => { if (e.name !== 'AbortError') showImg(url); return false; });
+  if (!navigator.share) { showImg(url, '공유 기능 없음'); return Promise.resolve(false); }
+  if (navigator.canShare && !navigator.canShare({ files })) { showImg(url, '사진 공유 안 됨'); return Promise.resolve(false); }
+  return navigator.share({ files }).then(() => true).catch(e => { if (e.name !== 'AbortError') showImg(url, e.name); return false; });
 }
 // 오늘 보낸 것 표시(이 폰에만 남는 편의 표시)
 const sentKey = d => 'lc_sent_' + d;
