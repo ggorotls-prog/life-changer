@@ -191,6 +191,23 @@
   .cn-s b { color: #b5523f; font-weight: 800; margin-right: 4px; }
   .cn-foot { position: absolute; left: 40px; bottom: 26px; font-size: 14px; font-weight: 800; color: #4a9b6e; }
   .foot { font-size: 12px; color: var(--sub); }
+  /* 2단계 조 화면(2026-11-20 룡 「폰에서 혼잡」): 조원마다 한 장. 요약 4칸 + 최근 피드백, 표는 펼쳐 본다 */
+  .mem { border-top: 1px solid #eee; padding: 12px 0; }
+  .mem:first-of-type { border-top: 0; }
+  .mem-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .mem-h b { font-size: 16px; } .mem-h small { color: var(--sub); font-size: 12px; }
+  .mem-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+  .mem-sum div { background: var(--bg); border-radius: 10px; padding: 6px 4px; text-align: center; min-width: 0; }
+  .mem-sum small { display: block; font-size: 11px; color: var(--sub); } .mem-sum b { font-size: 14px; white-space: nowrap; display: block; overflow: hidden; text-overflow: clip; }
+  .mem-fb { margin-top: 8px; background: #eef7f1; border-left: 3px solid var(--s2); border-radius: 8px; padding: 6px 10px; font-size: 14px; word-break: break-word; }
+  .mem-fb small { color: var(--sub); font-size: 12px; }
+  .mem details { margin-top: 8px; } .mem summary { font-size: 13px; color: var(--sub); cursor: pointer; }
+  .tbl2 { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .tbl2 { font-size: 13px; } .tbl2 tbody td, .tbl2 th, .tbl2 td { border: 0 !important; border-bottom: 1px solid #eee !important; height: 34px; padding: 0 4px; background: none; }
+  .tbl2 th { font-size: 11px; color: var(--sub); font-weight: 500; }
+  .mchk span { color: #ccc; } .mchk span.y { color: var(--s2); font-weight: 800; }
+  .why2 { display: block; font-size: 11px; color: var(--sub); white-space: normal; max-width: 90px; margin: 0 auto; }
+  .invbox summary { font-weight: 700; cursor: pointer; }
   #nextBox { margin-top: 14px; font-size: 15px; line-height: 1.6; }
   #nextBox .row { padding: 8px 10px; border-radius: 10px; margin-bottom: 6px; background: #f7f7f7; }
   #nextBox .row.go { background: #fdeee0; } #nextBox .row.rest { background: #eef4fb; }
@@ -285,7 +302,7 @@ function rpc(fn, args) {
   }));
 }
 const call = (fn, args) => rpc(fn, Object.assign({ p_token: token }, args || {}));
-function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function showMsg(kind, text) { const m = $('msg'); m.className = 'msg ' + kind; m.textContent = text || ''; }
 const fail = e => showMsg('err', e.message || e);
 
@@ -723,25 +740,53 @@ $('close').onclick = () => $('modal').classList.remove('show');
 /* ===== 2단계 상세: 건강 기록 그 조 화면 ===== */
 const FACES = ['😫', '😐', '😄'];
 const hm = t => t ? String(t).slice(0, 5) : '-';
+/* 끼니 체크: 아·점·저 중 먹은 끼니만 초록(사진·글은 안 보임, 2026-11-20 룡) */
+function mealChk(r) {
+  if (!r.meals) return r.diet ? '✅' : '-';
+  return `<span class="mchk">${[['breakfast', '아'], ['lunch', '점'], ['dinner', '저']].map(([k, n]) => `<span class="${r.meals.includes(k) ? 'y' : ''}">${n}</span>`).join('')}</span>`;
+}
 function recordTable(rows) {
-  /* 3단계 캠프 조: 영양제 체크(아침·점심·저녁 중 몇 번)가 있으면 칸을 더 보인다(2026-11-20) */
+  /* 3단계 캠프 조: 영양제 체크(아침·점심·저녁 중 몇 번)가 있으면 칸을 더 보인다(2026-11-20). 긴급 해제는 본인만 봐서 칸이 없다 */
   const eve = (rows || []).some(r => r.supps > 0);
-  return `<div class="scroll"><table class="tbl"><tr><th>날짜</th><th>기상</th><th>취침</th><th>컨디션</th><th>운동</th><th>식단</th>${eve ? '<th>영양제</th>' : ''}<th>해제</th></tr>
+  return `<div class="scroll"><table class="tbl2"><tr><th>날짜</th><th>기상</th><th>취침</th><th>컨디션</th><th>운동</th><th>식단</th>${eve ? '<th>영양제</th>' : ''}</tr>
     ${(rows || []).map(r => `<tr><td>${r.day.slice(5).replace('-', '/')}</td><td>${hm(r.wake)}</td><td>${hm(r.bed)}</td>
-      <td>${r.condition ? FACES[r.condition - 1] : '-'}</td><td>${r.exercise ? '✅' : '-'}</td><td>${r.diet ? '✅' : '-'}</td>${eve ? `<td>${r.supps ? r.supps + '/3' : '-'}</td>` : ''}
-      <td class="why-td">${(r.unlocks || []).map(u => esc(u.at + ' ' + u.note)).join('<br>') || '-'}</td></tr>`).join('')}</table></div>`;
+      <td>${r.condition ? FACES[r.condition - 1] : '-'}${r.condition_note ? `<span class="why2">${esc(r.condition_note)}</span>` : ''}</td><td>${r.exercise ? '✅' : '-'}</td><td>${mealChk(r)}</td>${eve ? `<td>${r.supps ? r.supps + '/3' : '-'}</td>` : ''}</tr>`).join('')}</table></div>`;
+}
+/* 조원 한 장: 최근 7일 요약 4칸 + 최근 피드백 + 표(펼치기) */
+function avgHM(list) {
+  if (!list.length) return '-';
+  const v = Math.round(list.reduce((a, c) => a + c, 0) / list.length) % 1440;
+  return String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0');
+}
+const toM = t => { if (!t) return null; const [h, m] = String(t).split(':').map(Number); return h * 60 + m; };
+function memberCard(m) {
+  const w = (m.records || []).slice(0, 7);
+  const wake = avgHM(w.map(r => toM(r.wake)).filter(x => x != null));
+  const ex = w.filter(r => r.exercise).length;
+  const meals = w.reduce((a, r) => a + (r.meals || []).filter(k => k !== 'snack').length, 0);
+  const cond = w.filter(r => r.condition), good = cond.filter(r => r.condition === 3).length, bad = cond.filter(r => r.condition === 1).length;
+  const fb = (m.feedback || [])[0];
+  return `<div class="mem"><div class="mem-h"><b>${esc(m.nickname)}${m.leader ? ' ⭐' : ''}</b><small>최근 7일</small></div>
+    <div class="mem-sum">
+      <div><small>평균 기상</small><b>${wake}</b></div>
+      <div><small>운동</small><b>${ex}/${m.goal || '-'}일</b></div>
+      <div><small>끼니</small><b>${meals}/21</b></div>
+      <div><small>컨디션</small><b>😄${good} 😫${bad}</b></div>
+    </div>
+    ${fb ? `<div class="mem-fb"><small>📌 스스로 한 피드백 · ${esc(fb.at)}</small><br>${esc(fb.note)}</div>` : ''}
+    <details><summary>날짜별 표 보기 (2주)</summary>${recordTable(m.records)}</details></div>`;
 }
 function loadGroup(id) {
   return call('lc_group', { p_group: +id }).then(g => {
     $('app').innerHTML = backBtn() + `
       <div class="card"><h2>🌱 ${esc(g.name)} <span class="sub">${STAGE[2]}</span></h2>
-        <label>참가자 주소 (건강 기록 · 앱도 같음)</label>${urlBox(LIFE_URL)}
-        <h3>🎟 초대 코드 (한 번 쓰면 끝)</h3>
+        <h3 style="margin-top:4px">👥 조원 ${g.members.length}명 <span class="sub">여기 내용은 다른 곳에 옮기지 않아요</span></h3>
+        ${g.members.map(memberCard).join('') || '<p class="sub">아직 조원이 없어요. 아래에서 초대 코드를 만들어 보내 주세요.</p>'}</div>
+      <div class="card"><details class="invbox"${g.members.length ? '' : ' open'}><summary>🎟 조원 초대하기 (초대 코드 ${g.invites.length}개 남음)</summary>
+        <label style="margin-top:10px">참가자 주소 (건강 기록 · 앱도 같음)</label>${urlBox(LIFE_URL)}
         ${g.invites.map(i => `<div class="who-row"><span class="code">${esc(i.code)}</span><span>${i.leader ? '리더용' : '조원용'} <button data-copy="${esc(i.code)}">복사</button></span></div>`).join('') || '<p class="sub">남은 초대 코드가 없어요.</p>'}
         <div class="bar" style="margin-top:8px"><button class="go" id="inv">➕ 조원 초대 코드</button><button id="invL">리더 초대 코드</button></div>
-        <p class="sub">새 사람은 주소에서 「초대 코드로 가입하기」 → 초대 코드 + 닉네임 + 비밀번호로 들어와요.</p></div>
-      <div class="card"><h2>👥 조원 ${g.members.length}명 <span class="sub">최근 2주 · 여기 내용은 다른 곳에 옮기지 않아요</span></h2>
-        ${g.members.map(m => `<h3>${esc(m.nickname)}${m.leader ? ' ⭐리더' : ''} <span class="sub">운동 목표 주 ${m.goal || '-'}일</span></h3>${recordTable(m.records)}`).join('') || '<p class="sub">아직 조원이 없어요. 초대 코드를 만들어 보내 주세요.</p>'}</div>`;
+        <p class="sub">새 사람은 주소에서 「초대 코드로 가입하기」 → 초대 코드 + 닉네임 + 비밀번호로 들어와요.</p></details></div>`;
     const inv = leader => call('lc_group_invite', { p_group: +id, p_leader: leader }).then(r => { showMsg('ok', '초대 코드 ' + r.code + ' 를 만들었어요.'); return loadGroup(id); }).catch(fail);
     $('inv').onclick = () => inv(false);
     $('invL').onclick = () => inv(true);
