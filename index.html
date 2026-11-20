@@ -766,14 +766,14 @@ function memberCard(m) {
   const meals = w.reduce((a, r) => a + (r.meals || []).filter(k => k !== 'snack').length, 0);
   const cond = w.filter(r => r.condition), good = cond.filter(r => r.condition === 3).length, bad = cond.filter(r => r.condition === 1).length;
   const fb = (m.feedback || [])[0];
-  return `<div class="mem"><div class="mem-h"><b>${esc(m.nickname)}${m.leader ? ' ⭐' : ''}</b><small>최근 7일</small></div>
+  return `<div class="mem"><div class="mem-h"><b>${esc(m.nickname)}${m.leader ? ' ⭐' : ''}</b><span><small>최근 7일</small> <button type="button" data-kick="${esc(m.nickname)}" style="font-size:12px;padding:4px 8px;margin-left:6px">내보내기</button></span></div>
     <div class="mem-sum">
       <div><small>평균 기상</small><b>${wake}</b></div>
       <div><small>운동</small><b>${ex}/${m.goal || '-'}일</b></div>
       <div><small>끼니</small><b>${meals}/21</b></div>
       <div><small>컨디션</small><b>😄${good} 😫${bad}</b></div>
     </div>
-    ${fb ? `<div class="mem-fb"><small>📌 스스로 한 피드백 · ${esc(fb.at)}</small><br>${esc(fb.note)}</div>` : ''}
+    ${fb ? `<div class="mem-fb"><small>📌 스스로 정한 적용점 · ${esc(fb.at)}</small><br>${esc(fb.note)}</div>` : ''}
     <details><summary>날짜별 표 보기 (2주)</summary>${recordTable(m.records)}</details></div>`;
 }
 function loadGroup(id) {
@@ -782,13 +782,27 @@ function loadGroup(id) {
       <div class="card"><h2>🌱 ${esc(g.name)} <span class="sub">${STAGE[2]}</span></h2>
         <h3 style="margin-top:4px">👥 조원 ${g.members.length}명 <span class="sub">여기 내용은 다른 곳에 옮기지 않아요</span></h3>
         ${g.members.map(memberCard).join('') || '<p class="sub">아직 조원이 없어요. 아래에서 초대 코드를 만들어 보내 주세요.</p>'}</div>
-      <div class="card"><details class="invbox"${g.members.length ? '' : ' open'}><summary>🎟 조원 초대하기 (초대 코드 ${g.invites.length}개 남음)</summary>
+      <div class="card"><details class="invbox"${g.members.length ? '' : ' open'}><summary>🎟 조원 초대하기 · 코드 ${esc(g.code || '-')}</summary>
+        <label style="margin-top:10px">조원 초대 코드 (이 조는 늘 이 코드 하나 · 여러 명이 써도 돼요)</label>
+        <div class="who-row"><span class="code">${esc(g.code || '-')}</span><span><button data-copy="${esc(g.code || '')}">복사</button> <button id="newCode">새 코드로 바꾸기</button></span></div>
+        <p class="sub">새 코드로 바꾸면 옛 코드로는 더 못 들어와요. 이미 들어온 사람은 그대로예요.</p>
         <label style="margin-top:10px">참가자 주소 (건강 기록 · 앱도 같음)</label>${urlBox(LIFE_URL)}
-        ${g.invites.map(i => `<div class="who-row"><span class="code">${esc(i.code)}</span><span>${i.leader ? '리더용' : '조원용'} <button data-copy="${esc(i.code)}">복사</button></span></div>`).join('') || '<p class="sub">남은 초대 코드가 없어요.</p>'}
-        <div class="bar" style="margin-top:8px"><button class="go" id="inv">➕ 조원 초대 코드</button><button id="invL">리더 초대 코드</button></div>
+        <h3>⭐ 리더 초대 (한 번 쓰는 코드)</h3>
+        ${g.invites.map(i => `<div class="who-row"><span class="code">${esc(i.code)}</span><span>리더용 <button data-copy="${esc(i.code)}">복사</button></span></div>`).join('') || '<p class="sub">남은 리더 코드가 없어요.</p>'}
+        <div class="bar" style="margin-top:8px"><button id="invL">➕ 리더 초대 코드</button></div>
         <p class="sub">새 사람은 주소에서 「초대 코드로 가입하기」 → 초대 코드 + 닉네임 + 비밀번호로 들어와요.</p></details></div>`;
     const inv = leader => call('lc_group_invite', { p_group: +id, p_leader: leader }).then(r => { showMsg('ok', '초대 코드 ' + r.code + ' 를 만들었어요.'); return loadGroup(id); }).catch(fail);
-    $('inv').onclick = () => inv(false);
+    $('newCode').onclick = () => {
+      const b = $('newCode');
+      if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '정말 바꾸기'; return; }
+      call('lc_group_new_code', { p_group: +id }).then(r => { showMsg('ok', '새 초대 코드 ' + r.code + ' 로 바꿨어요.'); return loadGroup(id); }).catch(fail);
+    };
+    /* 잘못 들어온 사람 내보내기(2026-11-20 룡): 조에서만 빠지고 계정·기록은 본인에게 남는다 */
+    $('app').querySelectorAll('[data-kick]').forEach(b => b.onclick = () => {
+      if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '정말 내보내기'; return; }
+      b.disabled = true;
+      call('lc_group_kick', { p_group: +id, p_nick: b.dataset.kick }).then(() => { showMsg('ok', b.dataset.kick + '님을 조에서 내보냈어요.'); return loadGroup(id); }).catch(e => { b.disabled = false; fail(e); });
+    });
     $('invL').onclick = () => inv(true);
   });
 }
