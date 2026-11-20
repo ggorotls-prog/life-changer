@@ -388,7 +388,7 @@ function renderHome() {
     <div class="steps"><span>💪 1단계 운동방 <b>${sum(1)}</b>명</span><span>🌿 2단계 생활개선 <b>${sum(2)}</b>명</span><span>🔥 3단계 캠프 <b>${h.rooms.filter(r => r.stage === 3).length}</b>개 조</span></div></div>`;
   // 단계끼리 모으고, 단계마다 제목 + 구분선 + 그 단계 끝에 「새 방 만들기」 칸 (2026-11-14 룡)
   const NEW = { 1: ['➕ 새 운동방', '만들면 참가자 주소가 생겨요'], 2: ['➕ 새 생활개선 조', '초대 코드로 건강 기록에 들어와요'],
-    3: ['➕ 새 셀체인지 캠프 조', '건강 기록에 저녁 기록(식사·영양제·운동·한줄 감사)이 더 보여요'] };
+    3: ['➕ 새 셀체인지 캠프 조', '건강 기록에 영양제 체크(아침·점심·저녁)가 더 보여요'] };
   const adminSel = st => h.super ? `<select class="nAdmin" data-st="${st}">${h.admins.map(a => `<option value="${a.id}"${a.name === h.me ? ' selected' : ''}>관리자 ${esc(a.name)}</option>`).join('')}</select>` : '';
   const body = hero + [1, 2, 3].map(st => {
     const list = h.rooms.filter(r => r.stage === st);
@@ -724,11 +724,11 @@ $('close').onclick = () => $('modal').classList.remove('show');
 const FACES = ['😫', '😐', '😄'];
 const hm = t => t ? String(t).slice(0, 5) : '-';
 function recordTable(rows) {
-  /* 3단계 캠프 조: 저녁 기록(식사·영양제·운동 1~5, 한줄 감사)이 있으면 칸을 더 보인다(2026-11-20) */
-  const eve = (rows || []).some(r => r.evening), v = x => x == null ? '-' : x;
-  return `<div class="scroll"><table class="tbl"><tr><th>날짜</th><th>기상</th><th>취침</th><th>컨디션</th><th>운동</th><th>식단</th>${eve ? '<th>저녁 기록<br>식사·영양제·운동</th><th>한줄 감사</th>' : ''}<th>해제</th></tr>
+  /* 3단계 캠프 조: 영양제 체크(아침·점심·저녁 중 몇 번)가 있으면 칸을 더 보인다(2026-11-20) */
+  const eve = (rows || []).some(r => r.supps > 0);
+  return `<div class="scroll"><table class="tbl"><tr><th>날짜</th><th>기상</th><th>취침</th><th>컨디션</th><th>운동</th><th>식단</th>${eve ? '<th>영양제</th>' : ''}<th>해제</th></tr>
     ${(rows || []).map(r => `<tr><td>${r.day.slice(5).replace('-', '/')}</td><td>${hm(r.wake)}</td><td>${hm(r.bed)}</td>
-      <td>${r.condition ? FACES[r.condition - 1] : '-'}</td><td>${r.exercise ? '✅' : '-'}</td><td>${r.diet ? '✅' : '-'}</td>${eve ? `<td>${r.evening ? v(r.evening.meal) + ' · ' + v(r.evening.supp) + ' · ' + v(r.evening.move) : '-'}</td><td class="why-td">${r.evening && r.evening.thanks ? esc(r.evening.thanks) : '-'}</td>` : ''}
+      <td>${r.condition ? FACES[r.condition - 1] : '-'}</td><td>${r.exercise ? '✅' : '-'}</td><td>${r.diet ? '✅' : '-'}</td>${eve ? `<td>${r.supps ? r.supps + '/3' : '-'}</td>` : ''}
       <td class="why-td">${(r.unlocks || []).map(u => esc(u.at + ' ' + u.note)).join('<br>') || '-'}</td></tr>`).join('')}</table></div>`;
 }
 function loadGroup(id) {
