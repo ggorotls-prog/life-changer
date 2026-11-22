@@ -268,12 +268,12 @@ const SB_KEY = 'sb_publishable_BqE1VCDg50oi9zCflCjMuw_wYF55CTj';
 // 1단계 방 참가자 주소는 모두 라이프 체인저 안(히어로도, 2026-11-14 룡). 옛 hero-workout 주소는 히어로 방으로 넘겨 준다.
 const ROOM_URL = id => 'https://ggorotls-prog.github.io/life-changer/room/?r=' + id;
 // 방 이름이 카톡 미리보기에 나오는 주소(room/방코드/). 그 방 페이지를 만들어 둔 방만 이 주소를 준다(없으면 위 주소).
-const ROOM_PAGE = id => 'https://ggorotls-prog.github.io/life-changer/room/' + id + '/';
+const ROOM_PAGE = id => 'https://ggorotls-prog.github.io/life-changer/room/' + encodeURIComponent(id) + '/';
+// 확인이 끝나기 전에는 주소를 보여 주지 않는다(먼저 공용 주소가 복사되는 일을 막음, 2026-11-22 룡).
 function roomUrlBox(id) {
-  fetch('room/' + encodeURIComponent(id) + '/', { method: 'HEAD', cache: 'no-store' }).then(r => {
-    const box = $('roomUrl'); if (r.ok && box && room && room.id === id) box.innerHTML = urlBox(ROOM_PAGE(id));
-  }).catch(() => {});
-  return '<div id="roomUrl">' + urlBox(ROOM_URL(id)) + '</div>';
+  const put = ok => { const box = $('roomUrl'); if (box && room && room.id === id) box.innerHTML = urlBox(ok ? ROOM_PAGE(id) : ROOM_URL(id)); };
+  fetch('room/' + encodeURIComponent(id) + '/', { method: 'HEAD', cache: 'no-store' }).then(r => put(r.ok)).catch(() => put(false));
+  return '<div id="roomUrl"><p class="sub">주소 확인 중…</p></div>';
 }
 const LIFE_URL = 'https://ggorotls-prog.github.io/life-room/';
 const STAGE = { 1: '1단계 · 운동방', 2: '2단계 · 생활개선', 3: '3단계 · 셀체인지 캠프' };

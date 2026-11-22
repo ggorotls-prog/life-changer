@@ -224,6 +224,14 @@ const SB_URL = 'https://trlnatdkebjvgiqneulv.supabase.co';
 const SB_KEY = 'sb_publishable_BqE1VCDg50oi9zCflCjMuw_wYF55CTj';
 const ROOM = (new URLSearchParams(location.search).get('r') || 'hero').trim();
 const K = s => ROOM === 'hero' ? s : s + ':' + ROOM; // 폰에 기억하는 것은 방마다 따로 (히어로는 옛 이름 그대로)
+// 주소창을 방 전용 주소(room/방코드/)로 바꾼다. 거기서 복사·공유해도 카톡 미리보기에 방 이름이 나온다(2026-11-22 룡).
+// 방 페이지(tools/room_pages.py로 만든 것)가 있는 방만. 그 페이지는 다시 ?r=로 넘어오므로 화면은 그대로다.
+if (new URLSearchParams(location.search).get('r') && /^[A-Za-z0-9_-]+$/.test(ROOM) && history.replaceState) {
+  const page = encodeURIComponent(ROOM) + '/';
+  fetch(page, { method: 'HEAD', cache: 'no-store' }).then(r => {
+    if (r.ok) history.replaceState(history.state, '', page + location.hash);
+  }).catch(() => {});
+}
 
 let state = null;
 const $ = id => document.getElementById(id);
