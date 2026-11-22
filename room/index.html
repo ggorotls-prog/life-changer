@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>💪 히어로 운동 챌린지</title>
+<title>💪 라이프 체인저 운동방</title>
+<meta property="og:title" content="💪 라이프 체인저 운동방">
+<meta property="og:description" content="이름을 고르고 오늘 운동을 인증해요">
+<meta property="og:image" content="https://ggorotls-prog.github.io/life-changer/icon-512.png">
 <link rel="preconnect" href="https://trlnatdkebjvgiqneulv.supabase.co" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
 <style>
@@ -87,6 +90,11 @@
   .hist .row.off { background: #eef4fb; } .hist .row.off b { color: #18406b; }
   .picker .chips button.offbtn { width: 56px; font-size: 14px; }
   .picker .chips button.offbtn.cur { background: #4a7bb7; }
+  .picker .chips button:disabled { opacity: .35; cursor: default; }
+  .picker .why { display: none; gap: 6px; max-width: 360px; margin: 6px auto; }
+  .picker .why.show { display: flex; }
+  .picker .why input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+  .picker .why .go { padding: 10px 12px; font-size: 15px; white-space: nowrap; }
   .adminCard { display: none; }
   .admin .adminCard { display: block; }
   .adminCard h2 { font-size: 17px; margin: 0 0 10px; }
@@ -230,10 +238,10 @@ function rpc(fn, args) {
 const store = { get: k => { try { return localStorage.getItem(K(k)); } catch (e) { return null; } },
                 set: (k, v) => { try { localStorage.setItem(K(k), v); } catch (e) {} } };
 
-const api = (fn, a, b) =>
+const api = (fn, a, b, c) =>
   fn === 'getWeek' ? getWeek(a)
   : fn === 'submit' ? rpc('hero_submit', { p_room: ROOM, p_name: a, p_date: b })
-  : rpc('hero_set_goal', { p_room: ROOM, p_name: a, p_goal: b });
+  : rpc('hero_set_goal', { p_room: ROOM, p_name: a, p_goal: b, p_reason: c || null });
 
 function setTitle(t) {
   const s = '💪 ' + t + ' 운동 챌린지';
@@ -252,11 +260,12 @@ function getWeek(weekStart) {
     const start = weekStart || sundayOf(d.today);
     const days = [...Array(7)].map((_, i) => addDays(start, i));
     const me = d.me;
+    const offWhy = {}; // 휴무 주 → 사유
     const goalFor = wk => {
       let g = me.goal, off = false;
       me.changes.forEach(c => {
         if (c.from > wk) return;
-        if (c.goal === 0) { if (c.from === wk) off = true; }
+        if (c.goal === 0) { if (c.from === wk) { off = true; offWhy[wk] = c.reason || ''; } }
         else { g = c.goal; if (c.from === wk) off = false; }
       });
       return off ? 0 : g; // 0 = 휴무(그 주만)
@@ -279,8 +288,8 @@ function getWeek(weekStart) {
         (mine[wk] = mine[wk] || {})[date] = true;
       });
       done[me.name] = mine[start] || {};
-      hist[me.name] = weeks.map(wk => ({ wk, cnt: Object.keys(mine[wk] || {}).length, goal: goalFor(wk) }));
-      const m = members.find(x => x.name === me.name); if (m) m.goal = goalFor(start);
+      hist[me.name] = weeks.map(wk => ({ wk, cnt: Object.keys(mine[wk] || {}).length, goal: goalFor(wk), why: offWhy[wk] || '' }));
+      const m = members.find(x => x.name === me.name); if (m) { m.goal = goalFor(start); m.why = offWhy[start] || ''; }
     }
     return { title: d.title, who: me ? me.name : null, today: d.today, weekStart: start, days, members, done, round, hist, next: nextInfo(d) };
   });
@@ -342,7 +351,7 @@ function renderMine(w) {
   const left = '남은 ' + need + '회 · 남은 날 ' + open + '일 (오늘 포함)';
   let cls, t, u = left;
   const off = m.goal === 0; // 휴무 주
-  if (off) { cls = 'safe'; t = '🌴 이번 주는 휴무예요'; u = '다음 주에 원래 결단으로 다시 시작해요'; }
+  if (off) { cls = 'safe'; t = '🌴 이번 주는 휴무예요'; u = (m.why ? '사유: ' + esc(m.why) + '<br>' : '') + '다음 주에 원래 결단으로 다시 시작해요'; }
   else if (need === 0) { cls = 'good'; t = '🎉 결단 달성!'; u = '수고하셨어요. 더 하면 보너스 💪'; }
   else if (w.days[6] < w.today) { cls = 'bad'; t = '이 주는 ' + need + '회 모자랐어요'; u = '이번 주에 다시 힘내요!'; }
   else if (need >= open) { cls = 'bad'; t = need === open ? '🔴 위험! 남은 날 매일 해야 해요' : '🔴 위험!'; }
@@ -359,10 +368,12 @@ function renderMine(w) {
 
   // 결단 바꾸기: 이번 주를 볼 때만
   if (w.days.indexOf(w.today) >= 0) {
+    const late = offClosed(kstToday()) && !off; // 수요일부터는 휴무를 새로 못 정한다
     h += '<div class="goalrow">내 결단 <b>' + goalTxt + '</b><button class="chg" data-act="pick">결단 바꾸기</button></div>' +
          '<div class="picker" id="picker"><div class="chips">' +
-         [0, 3, 4, 5, 6, 7].map(n => '<button data-goal="' + n + '"' + (n === 0 ? ' class="offbtn' + (off ? ' cur' : '') + '"' : n === m.goal ? ' class="cur"' : '') + '>' + (n || '휴무') + '</button>').join('') +
-         '</div><p>횟수는 <b>이번 주부터 계속</b>, 휴무는 <b>이번 주만</b> 적용돼요.</p></div>';
+         [0, 3, 4, 5, 6, 7].map(n => '<button data-goal="' + n + '"' + (n === 0 ? ' class="offbtn' + (off ? ' cur' : '') + '"' + (late ? ' disabled' : '') : n === m.goal ? ' class="cur"' : '') + '>' + (n || '휴무') + '</button>').join('') +
+         '</div><div class="why" id="why"><input type="text" id="whyTxt" maxlength="100" placeholder="사유 (안 적어도 돼요 · 방 사람도 봐요)" value="' + esc(m.why || '') + '"><button class="go" data-act="off">휴무로 정하기</button></div>' +
+         '<p>횟수는 <b>이번 주부터 계속</b>, 휴무는 <b>이번 주만</b> 적용돼요.<br>휴무는 <b>화요일까지만</b> 정할 수 있어요. 사유는 방 사람도 볼 수 있으니 건강 사정 같은 것은 적지 마세요.</p></div>';
   }
 
   // 이번 기수 주차별 결과
@@ -373,7 +384,7 @@ function renderMine(w) {
     hist.forEach((x, i) => {
       const range = md(x.wk) + '~' + md(addDays(x.wk, 6));
       let cls, txt;
-      if (x.goal === 0) { cls = 'off'; txt = '🌴 휴무'; }
+      if (x.goal === 0) { cls = 'off'; txt = '🌴 휴무' + (x.why ? ' <small>' + esc(x.why) + '</small>' : ''); }
       else if (x.cnt >= x.goal) { cls = 'ok'; txt = '✅ 완수'; }
       else if (x.wk >= nowWk) { cls = 'now'; txt = '진행 중 ' + x.cnt + '/' + x.goal + '회'; }
       else { cls = 'no'; txt = '미완수 (' + x.cnt + '/' + x.goal + '회)'; }
@@ -485,6 +496,9 @@ $('go').onclick = () => {
     showMsg('err', '저장이 안 됐어요. 다시 눌러 주세요 (' + (e.message || e) + ')');
   }).finally(() => { $('go').disabled = false; });
 };
+// 휴무 마감: 그 주 화요일 끝(한국 시간). 수~토는 닫힘. 서버(hero_set_goal)도 같은 기준으로 막는다.
+const kstToday = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+function offClosed(today) { return new Date(today + 'T00:00:00Z').getUTCDay() > 2; }
 function sundayOf(d) { return addDays(d, -new Date(d + 'T00:00:00Z').getUTCDay()); }
 function bumpHist(name, wk, n) {
   const x = ((state.hist && state.hist[name]) || []).find(h => h.wk === wk);
@@ -500,21 +514,26 @@ $('mine').onclick = ev => {
   const b = ev.target.closest('button');
   if (!b) return;
   if (b.dataset.act === 'pick') return $('picker').classList.toggle('show');
-  const goal = +b.dataset.goal, name = $('name').value; // 0 = 휴무
-  if (b.dataset.goal === undefined || !name) return;
+  // 휴무 버튼은 사유 칸을 먼저 연다. 「휴무로 정하기」를 눌러야 저장한다.
+  if (b.dataset.goal === '0') { $('why').classList.toggle('show'); if ($('why').classList.contains('show')) $('whyTxt').focus(); return; }
+  const off = b.dataset.act === 'off';
+  const goal = off ? 0 : +b.dataset.goal, name = $('name').value; // 0 = 휴무
+  if ((!off && b.dataset.goal === undefined) || !name) return;
+  if (off && offClosed(kstToday())) return showMsg('err', '휴무는 화요일까지만 정할 수 있어요.');
+  const why = off ? $('whyTxt').value.trim().slice(0, 100) : '';
   // 화면 먼저 바꾸고 뒤에서 저장, 실패하면 되돌린다.
   const m = state.members.find(x => x.name === name);
   if (!m) return;
   const h = ((state.hist && state.hist[name]) || []).find(x => x.wk === state.weekStart);
-  const before = [m.goal, h && h.goal];
-  m.goal = goal; if (h) h.goal = goal;
+  const before = [m.goal, h && h.goal, m.why, h && h.why];
+  m.goal = goal; m.why = why; if (h) { h.goal = goal; h.why = why; }
   render(state);
   const p = document.createElement('div'); p.className = 'hint';
   p.innerHTML = goal === 0 ? '<div class="cheer">이번 주는 휴무로 바꿨어요</div>' + verseHtml('rest')
                            : '<div class="cheer">결단을 주 ' + goal + '회로 바꿨어요</div>';
   $('mine').querySelector('.goalrow').after(p);
-  api('setGoal', name, goal).catch(e => {
-    m.goal = before[0]; if (h) h.goal = before[1];
+  api('setGoal', name, goal, why).catch(e => {
+    m.goal = before[0]; m.why = before[2]; if (h) { h.goal = before[1]; h.why = before[3]; }
     render(state);
     showMsg('err', '결단이 저장 안 됐어요. 다시 해 주세요 (' + (e.message || e) + ')');
   });

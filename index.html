@@ -235,6 +235,7 @@
   .modal a, .modal button { padding: 10px 16px; border-radius: 10px; font-weight: 700; text-decoration: none; }
   .modal a { background: var(--red); color: #fff; }
   .modal button.share { background: #fee500; color: #191919; }
+  .offwhy { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: #eef4fb; color: #18406b; font-size: 15px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -266,6 +267,14 @@ const SB_URL = 'https://trlnatdkebjvgiqneulv.supabase.co';
 const SB_KEY = 'sb_publishable_BqE1VCDg50oi9zCflCjMuw_wYF55CTj';
 // 1단계 방 참가자 주소는 모두 라이프 체인저 안(히어로도, 2026-11-14 룡). 옛 hero-workout 주소는 히어로 방으로 넘겨 준다.
 const ROOM_URL = id => 'https://ggorotls-prog.github.io/life-changer/room/?r=' + id;
+// 방 이름이 카톡 미리보기에 나오는 주소(room/방코드/). 그 방 페이지를 만들어 둔 방만 이 주소를 준다(없으면 위 주소).
+const ROOM_PAGE = id => 'https://ggorotls-prog.github.io/life-changer/room/' + id + '/';
+function roomUrlBox(id) {
+  fetch('room/' + encodeURIComponent(id) + '/', { method: 'HEAD', cache: 'no-store' }).then(r => {
+    const box = $('roomUrl'); if (r.ok && box && room && room.id === id) box.innerHTML = urlBox(ROOM_PAGE(id));
+  }).catch(() => {});
+  return '<div id="roomUrl">' + urlBox(ROOM_URL(id)) + '</div>';
+}
 const LIFE_URL = 'https://ggorotls-prog.github.io/life-room/';
 const STAGE = { 1: '1단계 · 운동방', 2: '2단계 · 생활개선', 3: '3단계 · 셀체인지 캠프' };
 
@@ -472,11 +481,12 @@ function getWeek(weekStart, rm) {
     const days = [...Array(7)].map((_, i) => addDays(start, i));
     const changes = {};
     d.changes.forEach(c => (changes[c.name] = changes[c.name] || []).push(c));
+    const why = {}; // 이 주 휴무 사유 (이름 → 사유)
     const goalFor = (m, wk) => {
       let g = m.goal, off = false;
       (changes[m.name] || []).forEach(c => {
         if (c.from > wk) return;
-        if (c.goal === 0) { if (c.from === wk) off = true; }
+        if (c.goal === 0) { if (c.from === wk) { off = true; if (wk === start) why[m.name] = c.reason || ''; } }
         else { g = c.goal; if (c.from === wk) off = false; }
       });
       return off ? 0 : g;
@@ -484,6 +494,7 @@ function getWeek(weekStart, rm) {
     const done = {};
     d.records.forEach(([name, date]) => { if (date >= days[0] && date <= days[6]) (done[name] = done[name] || {})[date] = true; });
     const members = d.members.map(m => ({ name: m.name, goal: goalFor(m, start) }));
+    members.forEach(m => { if (!m.goal) m.why = why[m.name] || ''; });
     return { name: d.room.name, today: d.today, weekStart: start, days, members, done, all: d.all, rounds: d.rounds, next: nextInfo(d) };
   });
 }
@@ -515,6 +526,13 @@ function tableHtml(w) {
   });
   return h + '</tbody></table>';
 }
+// 이 주 휴무한 사람과 사유 (화면에만, 카톡으로 보내는 표 이미지에는 안 들어감)
+function offHtml(w) {
+  const off = w.members.filter(m => !m.goal);
+  if (!off.length) return '';
+  return '<div class="offwhy"><b>🌴 이 주 휴무 ' + off.length + '명</b>' +
+    off.map(m => '<div>' + esc(m.name) + ' — ' + (m.why ? esc(m.why) : '<span class="sub">사유 없음</span>') + '</div>').join('') + '</div>';
+}
 function nextHtml(w) {
   if (!w.next) return '';
   const who = c => w.members.filter(m => (w.next.choices[m.name] || '') === c).map(m => esc(m.name));
@@ -531,12 +549,12 @@ function renderRoom(w) {
   const nextStart = last ? addDays(last.end, 1) : sundayOf(w.today);
   $('app').innerHTML = backBtn() + `
     <div class="card"><h2>💪 ${esc(room.name)} <span class="sub">${STAGE[1]}</span></h2>
-      <label>참가자 주소 (단톡방에 올려 주세요 · 로그인 없이 이름만 골라요)</label>${urlBox(ROOM_URL(room.id))}</div>
+      <label>참가자 주소 (단톡방에 올려 주세요 · 로그인 없이 이름만 골라요)</label>${roomUrlBox(room.id)}</div>
     <div class="card"><h2>📊 운동표</h2>
       <p class="sub">오늘 보낼 것(카드뉴스 + 방마다 운동표)은 첫 화면 「📤 오늘 보낼 것」에서 한 번에 보내요.</p>
       <div class="bar"><button class="nav" id="prev">◀ 지난주</button><span class="wk">${md(w.days[0])} ~ ${md(w.days[6])}</span>
         <button class="nav" id="next"${w.days[6] >= w.today ? ' disabled' : ''}>다음주 ▶</button></div>
-      <div class="scroll"><div id="board">${tableHtml(w)}</div></div>${w.days[6] >= w.today ? '<div class="legend">남은 횟수<i style="background:#cc0000"></i>오늘 안 하면 못 채움<i style="background:var(--left)"></i>하루 여유<i style="background:var(--zero)"></i>달성</div>' : ''}
+      <div class="scroll"><div id="board">${tableHtml(w)}</div></div>${w.days[6] >= w.today ? '<div class="legend">남은 횟수<i style="background:#cc0000"></i>오늘 안 하면 못 채움<i style="background:var(--left)"></i>하루 여유<i style="background:var(--zero)"></i>달성</div>' : ''}${offHtml(w)}
       <button class="save sendall" id="save">📤 이 운동표 카톡으로 보내기</button>
       <p class="foot" style="text-align:center">불러온 시각 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} · 이 방에만 보내요 · 지난주 표도 보낼 수 있어요</p>
       <div id="nextBox">${nextHtml(w)}</div></div>
