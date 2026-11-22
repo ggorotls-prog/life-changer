@@ -359,7 +359,7 @@ function renderMine(w) {
   const left = '남은 ' + need + '회 · 남은 날 ' + open + '일 (오늘 포함)';
   let cls, t, u = left;
   const off = m.goal === 0; // 휴무 주
-  if (off) { cls = 'safe'; t = '🌴 이번 주는 휴무예요'; u = (m.why ? '사유: ' + esc(m.why) + '<br>' : '') + '다음 주에 원래 결단으로 다시 시작해요'; }
+  if (off) { cls = 'safe'; t = '🌴 이번 주는 휴무예요'; u = '다음 주에 원래 결단으로 다시 시작해요'; }
   else if (need === 0) { cls = 'good'; t = '🎉 결단 달성!'; u = '수고하셨어요. 더 하면 보너스 💪'; }
   else if (w.days[6] < w.today) { cls = 'bad'; t = '이 주는 ' + need + '회 모자랐어요'; u = '이번 주에 다시 힘내요!'; }
   else if (need >= open) { cls = 'bad'; t = need === open ? '🔴 위험! 남은 날 매일 해야 해요' : '🔴 위험!'; }
@@ -380,8 +380,8 @@ function renderMine(w) {
     h += '<div class="goalrow">내 결단 <b>' + goalTxt + '</b><button class="chg" data-act="pick">결단 바꾸기</button></div>' +
          '<div class="picker" id="picker"><div class="chips">' +
          [0, 3, 4, 5, 6, 7].map(n => '<button data-goal="' + n + '"' + (n === 0 ? ' class="offbtn' + (off ? ' cur' : '') + '"' + (late ? ' disabled' : '') : n === m.goal ? ' class="cur"' : '') + '>' + (n || '휴무') + '</button>').join('') +
-         '</div><div class="why" id="why"><input type="text" id="whyTxt" maxlength="100" placeholder="사유 (안 적어도 돼요 · 방 사람도 봐요)" value="' + esc(m.why || '') + '"><button class="go" data-act="off">휴무로 정하기</button></div>' +
-         '<p>횟수는 <b>이번 주부터 계속</b>, 휴무는 <b>이번 주만</b> 적용돼요.<br>휴무는 <b>화요일까지만</b> 정할 수 있어요. 사유는 방 사람도 볼 수 있으니 건강 사정 같은 것은 적지 마세요.</p></div>';
+         '</div><div class="why" id="why"><input type="text" id="whyTxt" maxlength="100" placeholder="사유 (안 적어도 돼요 · 조장만 봐요)"><button class="go" data-act="off">휴무로 정하기</button></div>' +
+         '<p>횟수는 <b>이번 주부터 계속</b>, 휴무는 <b>이번 주만</b> 적용돼요.<br>휴무는 <b>화요일까지만</b> 정할 수 있어요. 사유는 조장만 봐요.</p></div>';
   }
 
   // 이번 기수 주차별 결과
