@@ -806,7 +806,7 @@ function memberCard(m) {
     return `<button type="button" class="cbtn" data-v="${v}" data-list="${encodeURIComponent(list)}" onclick="condWhy(this)">${FACES[v - 1]}${rows.length}</button>`;
   };
   const fb = (m.feedback || [])[0];
-  return `<div class="mem"><div class="mem-h"><b>${esc(m.nickname)}${m.leader ? ' ⭐' : ''}</b><span><small>최근 7일</small> <button type="button" data-kick="${esc(m.nickname)}" style="font-size:12px;padding:4px 8px;margin-left:6px">내보내기</button></span></div>
+  return `<div class="mem"><div class="mem-h"><b>${esc(m.nickname)}${m.leader ? ' ⭐' : ''}${m.plan ? ` <small style="font-weight:600;color:#c9822b">💊${m.plan}안</small>` : ''}</b><span><small>최근 7일</small> <button type="button" data-kick="${esc(m.nickname)}" style="font-size:12px;padding:4px 8px;margin-left:6px">내보내기</button></span></div>
     <div class="mem-sum">
       <div><small>평균 수면</small><b class="slp">${sl != null ? Math.floor(sl / 60) + '시간 ' + (sl % 60) + '분' : '-'}</b><small>기상 ${wake} · 취침 ${bed}</small></div>
       <div><small>운동</small><b>${ex}/${m.goal || '-'}일</b></div>
