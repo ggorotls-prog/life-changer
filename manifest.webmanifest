@@ -1,6 +1,6 @@
 {
-  "name": "라이프 체인저 관리자",
-  "short_name": "라이프 체인저",
+  "name": "관리자",
+  "short_name": "관리자",
   "id": "./",
   "start_url": "./",
   "scope": "./",

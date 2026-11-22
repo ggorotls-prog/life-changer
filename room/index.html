@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>💪 라이프 체인저 운동방</title>
-<meta property="og:title" content="💪 라이프 체인저 운동방">
+<title>💪 운동방</title>
+<meta property="og:title" content="💪 운동방">
 <meta property="og:description" content="이름을 고르고 오늘 운동을 인증해요">
-<meta property="og:image" content="https://ggorotls-prog.github.io/life-changer/icon-512.png">
+<meta property="og:image" content="https://ggorotls-prog.github.io/life-changer/room/og.png">
 <link rel="preconnect" href="https://trlnatdkebjvgiqneulv.supabase.co" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
 <style>
@@ -179,7 +179,7 @@
 </head>
 <body>
 <div class="wrap" id="app">
-  <div class="brand">🌱 라이프 체인저 · 1단계 운동방</div>
+  <div class="brand">💪 운동방</div>
   <h1 id="title">💪 운동 챌린지</h1>
   <div class="card">
     <div class="form">
@@ -216,9 +216,9 @@
 
 
 <script>
-// 라이프 체인저 1단계 운동방 참가자 화면. 주소 ?r=방 (없으면 히어로 방).
+// 1단계 운동방 참가자 화면. 주소 ?r=방 (없으면 히어로 방).
 // 데이터는 슈파베이스 「룡룡룡」의 hero_* 표(방마다 room_id). 표는 막혀 있고 함수(hero_pub·hero_submit·hero_set_goal·hero_set_next)로만.
-// 참가자는 고른 이름의 기록만 받는다. 전체 표·참가자 관리는 관리자 화면(라이프 체인저, 업무 기록 아이디 로그인)에만.
+// 참가자는 고른 이름의 기록만 받는다. 전체 표·참가자 관리는 관리자 화면(업무 기록 아이디 로그인)에만.
 // 아래 키는 공개용(publishable) 키라 화면에 있어도 된다.
 const SB_URL = 'https://trlnatdkebjvgiqneulv.supabase.co';
 const SB_KEY = 'sb_publishable_BqE1VCDg50oi9zCflCjMuw_wYF55CTj';
@@ -380,7 +380,7 @@ function renderMine(w) {
     h += '<div class="goalrow">내 결단 <b>' + goalTxt + '</b><button class="chg" data-act="pick">결단 바꾸기</button></div>' +
          '<div class="picker" id="picker"><div class="chips">' +
          [0, 3, 4, 5, 6, 7].map(n => '<button data-goal="' + n + '"' + (n === 0 ? ' class="offbtn' + (off ? ' cur' : '') + '"' + (late ? ' disabled' : '') : n === m.goal ? ' class="cur"' : '') + '>' + (n || '휴무') + '</button>').join('') +
-         '</div><div class="why" id="why"><input type="text" id="whyTxt" maxlength="100" placeholder="사유 (안 적어도 돼요 · 조장만 봐요)"><button class="go" data-act="off">휴무로 정하기</button></div>' +
+         '</div><div class="why" id="why"><input type="text" id="whyTxt" maxlength="100" placeholder="사유 (꼭 적어요 · 조장만 봐요)"><button class="go" data-act="off">휴무로 정하기</button></div>' +
          '<p>횟수는 <b>이번 주부터 계속</b>, 휴무는 <b>이번 주만</b> 적용돼요.<br>휴무는 <b>화요일까지만</b> 정할 수 있어요. 사유는 조장만 봐요.</p></div>';
   }
 
@@ -529,6 +529,7 @@ $('mine').onclick = ev => {
   if ((!off && b.dataset.goal === undefined) || !name) return;
   if (off && offClosed(kstToday())) return showMsg('err', '휴무는 화요일까지만 정할 수 있어요.');
   const why = off ? $('whyTxt').value.trim().slice(0, 100) : '';
+  if (off && !why) { $('whyTxt').focus(); return showMsg('err', '휴무 사유를 적어 주세요.'); } // 사유는 꼭 (2026-11-22 룡)
   // 화면 먼저 바꾸고 뒤에서 저장, 실패하면 되돌린다.
   const m = state.members.find(x => x.name === name);
   if (!m) return;
