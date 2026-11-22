@@ -199,6 +199,10 @@
   .mem-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
   .mem-sum div { background: var(--bg); border-radius: 10px; padding: 6px 4px; text-align: center; min-width: 0; }
   .mem-sum small { display: block; font-size: 11px; color: var(--sub); } .mem-sum b { font-size: 14px; white-space: nowrap; display: block; overflow: hidden; text-overflow: clip; }
+  .mem-sum .slp { white-space: normal; font-size: 13px; }
+  .mem-sum .cbtns { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; white-space: normal; overflow: visible; }
+  .mem-sum .cbtn { font-size: 12px; padding: 1px 2px; min-height: 0; border-radius: 6px; background: #fff; border: 1px solid #ddd; line-height: 1.2; }
+  .mem-why { margin-top: 6px; background: var(--bg); border-radius: 8px; padding: 6px 10px; font-size: 14px; word-break: break-word; }
   .mem-fb { margin-top: 8px; background: #eef7f1; border-left: 3px solid var(--s2); border-radius: 8px; padding: 6px 10px; font-size: 14px; word-break: break-word; }
   .mem-fb small { color: var(--sub); font-size: 12px; }
   .mem details { margin-top: 8px; } .mem summary { font-size: 13px; color: var(--sub); cursor: pointer; }
@@ -777,20 +781,39 @@ function avgHM(list) {
   return String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0');
 }
 const toM = t => { if (!t) return null; const [h, m] = String(t).split(':').map(Number); return h * 60 + m; };
+/* 컨디션 이모티콘을 누르면 그 날짜와 이유가 펼쳐진다(2026-11-22 룡) */
+function condWhy(btn) {
+  const box = btn.closest('.mem').querySelector('.mem-why'), on = box.dataset.v === btn.dataset.v && !box.hidden;
+  box.hidden = on; box.dataset.v = btn.dataset.v;
+  if (!on) box.innerHTML = btn.dataset.list ? decodeURIComponent(btn.dataset.list) : '<span class="sub">이 컨디션인 날이 없어요.</span>';
+}
 function memberCard(m) {
-  const w = (m.records || []).slice(0, 7);
+  const all = m.records || [], w = all.slice(0, 7), byDay = Object.fromEntries(all.map(r => [r.day, r]));
   const wake = avgHM(w.map(r => toM(r.wake)).filter(x => x != null));
+  /* 취침은 정오 전이면 다음 날로 쳐서 평균(새벽 1시 = 25시). 잠 = 전날 취침 → 그날 기상(건강 기록 「내 기록」과 같은 셈) */
+  const bed = avgHM(w.map(r => toM(r.bed)).filter(x => x != null).map(x => x < 720 ? x + 1440 : x));
+  const sleep = w.map(r => {
+    const prev = new Date(r.day + 'T00:00:00Z'); prev.setUTCDate(prev.getUTCDate() - 1);
+    const p = byDay[prev.toISOString().slice(0, 10)], b = p ? toM(p.bed) : null, k = toM(r.wake);
+    return b == null || k == null ? null : (k + 1440 - b) % 1440;
+  }).filter(x => x != null && x > 0);
+  const sl = sleep.length ? Math.round(sleep.reduce((a, c) => a + c, 0) / sleep.length) : null;
   const ex = w.filter(r => r.exercise).length;
   const meals = w.reduce((a, r) => a + (r.meals || []).filter(k => k !== 'snack').length, 0);
-  const cond = w.filter(r => r.condition), good = cond.filter(r => r.condition === 3).length, bad = cond.filter(r => r.condition === 1).length;
+  const condBtn = v => {
+    const rows = w.filter(r => r.condition === v);
+    const list = rows.map(r => `<div>${r.day.slice(5).replace('-', '/')} ${FACES[v - 1]} ${r.condition_note ? esc(r.condition_note) : '<span class="sub">이유 없음</span>'}</div>`).join('');
+    return `<button type="button" class="cbtn" data-v="${v}" data-list="${encodeURIComponent(list)}" onclick="condWhy(this)">${FACES[v - 1]}${rows.length}</button>`;
+  };
   const fb = (m.feedback || [])[0];
   return `<div class="mem"><div class="mem-h"><b>${esc(m.nickname)}${m.leader ? ' ⭐' : ''}</b><span><small>최근 7일</small> <button type="button" data-kick="${esc(m.nickname)}" style="font-size:12px;padding:4px 8px;margin-left:6px">내보내기</button></span></div>
     <div class="mem-sum">
-      <div><small>평균 기상</small><b>${wake}</b></div>
+      <div><small>평균 수면</small><b class="slp">${sl != null ? Math.floor(sl / 60) + '시간 ' + (sl % 60) + '분' : '-'}</b><small>기상 ${wake} · 취침 ${bed}</small></div>
       <div><small>운동</small><b>${ex}/${m.goal || '-'}일</b></div>
       <div><small>끼니</small><b>${meals}/21</b></div>
-      <div><small>컨디션</small><b>😄${good} 😫${bad}</b></div>
+      <div><small>컨디션 · 눌러 보기</small><b class="cbtns">${condBtn(3)}${condBtn(2)}${condBtn(1)}</b></div>
     </div>
+    <div class="mem-why" hidden></div>
     ${fb ? `<div class="mem-fb"><small>📌 스스로 정한 적용점 · ${esc(fb.at)}</small><br>${esc(fb.note)}</div>` : ''}
     <details><summary>날짜별 표 보기 (2주)</summary>${recordTable(m.records)}</details></div>`;
 }
