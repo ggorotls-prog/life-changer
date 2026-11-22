@@ -196,7 +196,7 @@
   .mem:first-of-type { border-top: 0; }
   .mem-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .mem-h b { font-size: 16px; } .mem-h small { color: var(--sub); font-size: 12px; }
-  .mem-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+  .mem-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
   .mem-sum div { background: var(--bg); border-radius: 10px; padding: 6px 4px; text-align: center; min-width: 0; }
   .mem-sum small { display: block; font-size: 11px; color: var(--sub); } .mem-sum b { font-size: 14px; white-space: nowrap; display: block; overflow: hidden; text-overflow: clip; }
   .mem-sum .slp { white-space: normal; font-size: 13px; }
@@ -799,7 +799,7 @@ function memberCard(m) {
   }).filter(x => x != null && x > 0);
   const sl = sleep.length ? Math.round(sleep.reduce((a, c) => a + c, 0) / sleep.length) : null;
   const ex = w.filter(r => r.exercise).length;
-  const meals = w.reduce((a, r) => a + (r.meals || []).filter(k => k !== 'snack').length, 0);
+  /* 끼니 숫자(n/21)는 올린 것만 세서 뺌, 다른 방법을 찾을 때까지(2026-11-22 룡). 날짜별 표의 아·점·저 체크는 남김 */
   const condBtn = v => {
     const rows = w.filter(r => r.condition === v);
     const list = rows.map(r => `<div>${r.day.slice(5).replace('-', '/')} ${FACES[v - 1]} ${r.condition_note ? esc(r.condition_note) : '<span class="sub">이유 없음</span>'}</div>`).join('');
@@ -810,7 +810,6 @@ function memberCard(m) {
     <div class="mem-sum">
       <div><small>평균 수면</small><b class="slp">${sl != null ? Math.floor(sl / 60) + '시간 ' + (sl % 60) + '분' : '-'}</b><small>기상 ${wake} · 취침 ${bed}</small></div>
       <div><small>운동</small><b>${ex}/${m.goal || '-'}일</b></div>
-      <div><small>끼니</small><b>${meals}/21</b></div>
       <div><small>컨디션 · 눌러 보기</small><b class="cbtns">${condBtn(3)}${condBtn(2)}${condBtn(1)}</b></div>
     </div>
     <div class="mem-why" hidden></div>
