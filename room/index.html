@@ -356,7 +356,7 @@ function renderMine(w) {
   const cnt = w.days.filter(d => done[d]).length;
   const need = Math.max(0, m.goal - cnt);
   const open = w.days.filter(d => d >= w.today && !done[d]).length; // 오늘 포함, 아직 안 한 남은 날
-  const left = '남은 ' + need + '회 · 남은 날 ' + open + '일 (오늘 포함)';
+  const left = '남은 횟수 ' + need + '회 · 남은 날 ' + open + '일 (오늘 포함)';
   let cls, t, u = left;
   const off = m.goal === 0; // 휴무 주
   if (off) { cls = 'safe'; t = '🌴 이번 주는 휴무예요'; u = '다음 주에 원래 결단으로 다시 시작해요'; }
