@@ -318,6 +318,28 @@ const call = (fn, args) => rpc(fn, Object.assign({ p_token: token }, args || {})
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function showMsg(kind, text) { const m = $('msg'); m.className = 'msg ' + kind; m.textContent = text || ''; }
 const fail = e => showMsg('err', e.message || e);
+/* 방 이름 바꾸기(2026-11-23 룡): 제목 옆 ✏️ → 그 자리에서 새 이름 쓰고 저장. kind = room(1단계) / group(2·3단계) */
+const renameBtn = () => ' <button id="rnBtn" title="방 이름 바꾸기" style="padding:2px 8px">✏️</button>';
+function bindRename(kind, id, cur, reload) {
+  const b = $('rnBtn'); if (!b) return;
+  b.onclick = () => {
+    const h = b.closest('h2');
+    h.innerHTML = '<input id="rnIn" maxlength="30" style="width:60%"> <button class="go" id="rnOk">저장</button> <button id="rnNo">취소</button>';
+    const inp = $('rnIn'); inp.value = cur; inp.focus();
+    inp.onkeydown = e => { if (e.key === 'Enter') $('rnOk').click(); };
+    $('rnNo').onclick = () => reload();
+    $('rnOk').onclick = () => {
+      const v = inp.value.trim();
+      if (!v) return showMsg('err', '새 방 이름을 적어 주세요.');
+      if (/[\/\\:*?"<>|]/.test(v)) return showMsg('err', '방 이름에 / \\ : * ? " < > | 는 못 써요.');
+      if (v === cur) return reload();
+      $('rnOk').disabled = true;
+      call('lc_rename_room', { p_kind: kind, p_id: String(id), p_name: v })
+        .then(() => { home = null; showMsg('ok', '방 이름을 「' + v + '」(으)로 바꿨어요.'); return reload(); })
+        .catch(e => { if ($('rnOk')) $('rnOk').disabled = false; fail(e); });
+    };
+  };
+}
 
 /* ===== 로그인 ===== */
 function renderLogin() {
@@ -552,7 +574,7 @@ function renderRoom(w) {
   const last = w.rounds[w.rounds.length - 1];
   const nextStart = last ? addDays(last.end, 1) : sundayOf(w.today);
   $('app').innerHTML = backBtn() + `
-    <div class="card"><h2>💪 ${esc(room.name)} <span class="sub">${STAGE[1]}</span></h2>
+    <div class="card"><h2>💪 ${esc(room.name)} <span class="sub">${STAGE[1]}</span>${renameBtn()}</h2>
       <label>참가자 주소 (단톡방에 올려 주세요 · 로그인 없이 이름만 골라요)</label>${roomUrlBox(room.id)}</div>
     <div class="card"><h2>📊 운동표</h2>
       <p class="sub">오늘 보낼 것(카드뉴스 + 방마다 운동표)은 첫 화면 「📤 오늘 보낼 것」에서 한 번에 보내요.</p>
@@ -574,6 +596,7 @@ function renderRoom(w) {
         <div><label for="rEnd">끝 (토요일)</label><input type="date" id="rEnd" value="${addDays(nextStart, 34)}"></div>
         <button class="go" id="rGo">넣기</button></div>
       <p class="sub">기본은 지난 기수 다음 주일부터 5주예요. 새 기수를 넣으면 참가자에게 다음 달 묻기가 멈춰요.</p></div>`;
+  bindRename('room', room.id, room.name, () => loadRoom(w.weekStart));
   $('prev').onclick = () => loadRoom(addDays(w.weekStart, -7));
   $('next').onclick = () => loadRoom(addDays(w.weekStart, 7));
   $('save').onclick = saveShot;
@@ -819,7 +842,7 @@ function memberCard(m) {
 function loadGroup(id) {
   return call('lc_group', { p_group: +id }).then(g => {
     $('app').innerHTML = backBtn() + `
-      <div class="card"><h2>🌱 ${esc(g.name)} <span class="sub">${STAGE[2]}</span></h2>
+      <div class="card"><h2>🌱 ${esc(g.name)} <span class="sub">${STAGE[2]}</span>${renameBtn()}</h2>
         <h3 style="margin-top:4px">👥 조원 ${g.members.length}명 <span class="sub">여기 내용은 다른 곳에 옮기지 않아요</span></h3>
         ${g.members.map(memberCard).join('') || '<p class="sub">아직 조원이 없어요. 아래에서 초대 코드를 만들어 보내 주세요.</p>'}</div>
       <div class="card"><details class="invbox"${g.members.length ? '' : ' open'}><summary>🎟 조원 초대하기 · 코드 ${esc(g.code || '-')}</summary>
@@ -844,6 +867,7 @@ function loadGroup(id) {
       call('lc_group_kick', { p_group: +id, p_nick: b.dataset.kick }).then(() => { showMsg('ok', b.dataset.kick + '님을 조에서 내보냈어요.'); return loadGroup(id); }).catch(e => { b.disabled = false; fail(e); });
     });
     $('invL').onclick = () => inv(true);
+    bindRename('group', id, g.name, () => loadGroup(id));
   });
 }
 
