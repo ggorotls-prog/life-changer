@@ -683,14 +683,40 @@ function showImg(url, why) {
   if (IN_KAKAO) ext.href = /android/i.test(navigator.userAgent)
     ? 'intent://' + location.href.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end'
     : 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
-  $('why').textContent = IN_KAKAO ? '카톡 안에서 연 화면은 공유 창이 안 열려요. 내려받아 카톡방에 올려 주세요. 설치한 앱이나 크롬에서 열면 바로 보낼 수 있어요.'
+  $('why').textContent = inLifeApp && why === '앱 업데이트 필요'
+    ? '앱이 옛 버전이라 공유 창이 안 열려요. ' + ((window.LifeRoom.appName && window.LifeRoom.appName()) || '앱') + ' 앱을 업데이트한 뒤 다시 눌러 주세요.'
+    : inLifeApp ? '사진을 만들지 못했어요. 닫고 다시 눌러 주세요.'
+    : IN_KAKAO ?'카톡 안에서 연 화면은 공유 창이 안 열려요. 내려받아 카톡방에 올려 주세요. 설치한 앱이나 크롬에서 열면 바로 보낼 수 있어요.'
     : IS_PHONE ? '공유 창이 안 열렸어요(' + (why || '이 브라우저') + '). 이미지를 꾹 눌러 공유하거나 크롬에서 열어 주세요.'
     : 'PC는 공유 창이 없어요. 내려받아 카톡에 끌어다 넣으세요.';
   $('modal').classList.add('show');
 }
 // 공유 한 번 = 사진 한 장. 카톡까지 넘겼으면 true
+// 앱(라이프 RPG·건강 기록) 안 웹 화면에는 navigator.share가 없다 → 앱 공유 창구 LifeRoom.shareImage(JPEG base64)로 폰 공유 창을 연다(2026-11-24 룡)
+// 앱이 실패를 알릴 때 부르는 window.toast를 이 화면의 안내로 잇는다
+if (inLifeApp && !window.toast) window.toast = t => showMsg('err', t);
+function toJpegB64(file) {
+  return new Promise((ok, no) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const x = c.getContext('2d');
+      x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0);
+      URL.revokeObjectURL(img.src);
+      ok(c.toDataURL('image/jpeg', 0.92).split(',')[1]);
+    };
+    img.onerror = no;
+    img.src = URL.createObjectURL(file);
+  });
+}
 function shareOne(file, url) {
   const files = [file];
+  if (inLifeApp) {
+    if (typeof window.LifeRoom.shareImage !== 'function') { showImg(url, '앱 업데이트 필요'); return Promise.resolve(false); }
+    return toJpegB64(file).then(b => { window.LifeRoom.shareImage(b, ''); return true; })
+      .catch(() => { showImg(url, '사진 만들기 실패'); return false; });
+  }
   if (!navigator.share) { showImg(url, '공유 기능 없음'); return Promise.resolve(false); }
   if (navigator.canShare && !navigator.canShare({ files })) { showImg(url, '사진 공유 안 됨'); return Promise.resolve(false); }
   return navigator.share({ files }).then(() => true).catch(e => { if (e.name !== 'AbortError') showImg(url, e.name); return false; });
