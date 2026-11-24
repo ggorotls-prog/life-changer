@@ -262,6 +262,15 @@
     </div>
   </div>
 </div>
+<div class="modal" id="pv">
+  <div class="box" style="width:min(92vw,480px);box-sizing:border-box">
+    <img id="pvImg" alt="보낼 사진" style="display:block;width:100%;height:auto;max-height:70vh;object-fit:contain">
+    <div class="row" style="margin-top:12px">
+      <button class="go" id="pvGo">카톡으로 보내기</button>
+      <button id="pvNo">닫기</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // 라이프 체인저 관리자 화면. 로그인 = 업무 기록 아이디(lc_login). 데이터는 로그인 열쇠를 받는 lc_* 함수로만.
@@ -754,7 +763,10 @@ function buildSend(h) {
     if (!b || b.disabled) return;
     const k = b.dataset.send, f = sendFiles[k];
     if (!f) return;
-    shareOne(f.file, f.url).then(ok => {
+    // 보내기 전에 나갈 사진을 크게 보여 주고, 「카톡으로 보내기」를 눌러야 공유 창이 열린다(2026-11-24 룡)
+    $('pvImg').src = f.url; $('pv').classList.add('show');
+    $('pvGo').onclick = () => { $('pv').classList.remove('show'); send(); };
+    const send = () => shareOne(f.file, f.url).then(ok => {
       if (!ok) return;
       markSent(today, k); b.closest('.send-row').classList.add('sent'); ready(k);
       const left = box.querySelectorAll('.send-row:not(.sent)').length;
@@ -807,6 +819,7 @@ function saveShot() {
   (shotJob || makeShot()).then(() => { btn.disabled = false; btn.textContent = '📤 이 운동표 카톡으로 보내기'; showMsg('ok', '준비됐어요. 한 번 더 눌러 주세요.'); });
 }
 $('close').onclick = () => $('modal').classList.remove('show');
+$('pvNo').onclick = () => $('pv').classList.remove('show');
 
 /* ===== 2단계 상세: 건강 기록 그 조 화면 ===== */
 const FACES = ['😫', '😐', '😄'];
