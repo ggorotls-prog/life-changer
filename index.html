@@ -448,14 +448,14 @@ function renderHome() {
     <div class="big"><b id="cnt">0</b>명의 삶이 변하는 중 🌱</div>
     <div class="steps"><span>💪 1단계 운동방 <b>${sum(1)}</b>명</span><span>🌿 2단계 생활개선 <b>${sum(2)}</b>명</span><span>🔥 3단계 캠프 <b>${h.rooms.filter(r => r.stage === 3).length}</b>개 조</span></div></div>`;
   // 단계끼리 모으고, 단계마다 제목 + 구분선 + 그 단계 끝에 「새 방 만들기」 칸 (2026-11-14 룡)
-  const NEW = { 1: ['➕ 새 운동방', '만들면 참가자 주소가 생겨요'], 2: ['➕ 새 생활개선 조', '초대 코드로 건강 기록에 들어와요'],
-    3: ['➕ 새 셀체인지 캠프 조', '건강 기록에 영양제 체크(아침·점심·저녁)가 더 보여요'] };
+  // 낱말 통일(2026-11-26 룡, 할 일 526fb02a): 버튼은 모두 「새 조 만들기」, 아래 작은 글씨로 단계 이름
+  const NEW = { 1: ['➕ 새 조 만들기', '1단계 운동방'], 2: ['➕ 새 조 만들기', '2단계 생활개선'], 3: ['➕ 새 조 만들기', '3단계 셀체인지 캠프'] };
   const adminSel = st => h.super ? `<select class="nAdmin" data-st="${st}">${h.admins.map(a => `<option value="${a.id}"${a.name === h.me ? ' selected' : ''}>관리자 ${esc(a.name)}</option>`).join('')}</select>` : '';
   const body = hero + [1, 2, 3].map(st => {
     const list = h.rooms.filter(r => r.stage === st);
     return `<div class="stage s${st}">${STAGE[st]}<small>${list.length}개</small></div><div class="grid">${list.map(cardHtml).join('')}
       <div class="addroom s${st}" data-st="${st}"><button class="open">${NEW[st][0]}<small>${NEW[st][1]}</small></button>
-        <div class="form"><input class="nName" placeholder="방 이름 (예: 새벽)">${st === 1 ? `<select class="nGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">내 결단 주 ${n}회</option>`).join('')}</select><small class="sub">관리자도 참가자예요. 실명${h.realName ? '(' + esc(h.realName) + ')' : ''}으로 첫 참가자가 돼요.</small>` : ''}${adminSel(st)}<button class="go nGo">만들기</button></div></div></div>`;
+        <div class="form"><input class="nName" placeholder="조 이름">${st === 1 ? `<select class="nGoal">${[3, 4, 5, 6, 7].map(n => `<option value="${n}">내 결단 주 ${n}회</option>`).join('')}</select><small class="sub">관리자도 참가자예요. 실명${h.realName ? '(' + esc(h.realName) + ')' : ''}으로 첫 참가자가 돼요.</small>` : ''}${adminSel(st)}<button class="go nGo">만들기</button></div></div></div>`;
   }).join('');
   $('app').innerHTML = body;
   $('app').querySelector('.hero').insertAdjacentHTML('afterend', meHtml(h) + checkHtml(h.mine) + sendHtml(h));
