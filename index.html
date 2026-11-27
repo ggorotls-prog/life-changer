@@ -181,6 +181,7 @@
   .cn-big.long { font-size: 68px; margin-top: 60px; }
   .cn-t { font-size: 33px; font-weight: 800; line-height: 1.32; letter-spacing: -0.03em; word-break: keep-all; }
   .cn-b { white-space: pre-line; font-size: 19px; font-weight: 500; line-height: 1.65; color: #4a352d; margin-top: 18px; word-break: keep-all; }
+  .cn-b .ln { display: block; white-space: nowrap; } .cn-b.wrap .ln { white-space: normal; } /* 한 문장 = 한 줄(2026-11-27 룡) */
   .cn-do { position: absolute; left: 40px; right: 40px; bottom: 74px; background: #e06666; color: #fff; border-radius: 18px; padding: 18px 20px;
            display: flex; gap: 16px; align-items: center; box-shadow: 0 8px 20px rgba(224,102,102,.35); word-break: keep-all; }
   .cn-box { flex: none; width: 34px; height: 34px; border: 3px solid #fff; border-radius: 9px; }
@@ -667,7 +668,7 @@ function cardNewsHtml(c, today) {
     <div class="cn-top"><span>💪 운동방 · 오늘의 한 장</span><span>${+p[1]}월 ${+p[2]}일 ${wd(today)}요일</span></div>
     <div class="cn-big${c.n.length > 7 ? ' long' : ''}">${esc(c.n)}</div>
     <div class="cn-t">${esc(c.t)}</div>
-    <div class="cn-b">${esc(c.b)}</div>
+    <div class="cn-b">${esc(c.b).split('\n').map(x => '<span class="ln">' + x + '</span>').join('')}</div>
     <div class="cn-do"><i class="cn-box"></i><div><b>오늘 오후 미션</b><span class="cn-m">${esc(c.d)}</span><small>끝내면 오운완 인증 ✅</small></div></div>
     <div class="cn-s"><b>📚 근거 연구</b> ${esc(srcLine(c))}</div>
     </div>`;
@@ -678,7 +679,12 @@ function fitCard() {
   if (!el) return;
   const b = el.querySelector('.cn-b'), t = el.querySelector('.cn-t'), d = el.querySelector('.cn-do'), g = el.querySelector('.cn-big');
   for (let f = parseFloat(getComputedStyle(g).fontSize); f > 40 && g.scrollWidth > g.clientWidth; f -= 4) g.style.fontSize = f - 4 + 'px';
-  for (let s = 19, ts = 33; s >= 15 && b.getBoundingClientRect().bottom > d.getBoundingClientRect().top - 12; s--, ts--) {
+  // 한 문장 = 한 줄(2026-11-27 룡): 가장 긴 줄이 카드 폭에 들어갈 때까지 설명 글자를 줄인다. 14px에서도 넘치면 그때만 줄을 바꾼다.
+  let s0 = 19;
+  const wide = () => [...b.children].some(x => x.scrollWidth > b.clientWidth + 0.5);
+  while (s0 > 14 && wide()) { s0 -= 0.5; b.style.fontSize = s0 + 'px'; }
+  if (wide()) { b.classList.add('wrap'); s0 = 19; b.style.fontSize = ''; }
+  for (let s = s0, ts = 33; s >= Math.min(15, s0) && b.getBoundingClientRect().bottom > d.getBoundingClientRect().top - 12; s--, ts--) {
     b.style.fontSize = s + 'px'; t.style.fontSize = ts + 'px';
   }
 }
@@ -780,8 +786,10 @@ function buildSend(h) {
   let p = Promise.resolve();
   const card = todayCard(today);
   if (card) p = p.then(() => {
-    $('cardArea').innerHTML = cardNewsHtml(card, today); fitCard();
-    return shoot($('cardArea').firstElementChild, { scale: 2, backgroundColor: null });
+    $('cardArea').innerHTML = cardNewsHtml(card, today);
+    // 글꼴을 다 받은 뒤 폭을 잰다(한 줄로 붙여 두므로 대신 글꼴로 재면 줄 끝이 잘림)
+    return document.fonts.load('500 19px "Noto Sans KR"', card.b).catch(() => {}).then(() => document.fonts.ready)
+      .then(() => { fitCard(); return shoot($('cardArea').firstElementChild, { scale: 2, backgroundColor: null }); });
   }).then(c => {
     alive(); const url = c.toDataURL('image/png');
     return toFile(c, '오늘의한장_' + md(today).replace('/', '-') + '.png').then(file => {
