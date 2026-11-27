@@ -92,7 +92,10 @@
   .picker .chips button.offbtn.cur { background: #4a7bb7; }
   .picker .chips button:disabled { opacity: .35; cursor: default; }
   .picker .why { display: none; gap: 6px; max-width: 360px; margin: 6px auto; }
-  .picker .why.show { display: flex; }
+  .picker .why.show { display: flex; flex-wrap: wrap; justify-content: center; }
+  .picker .whyk { display: flex; gap: 6px; width: 100%; }
+  .picker .whyk button { flex: 1; padding: 10px 0; font-size: 15px; background: #f1f1f1; border-radius: 10px; }
+  .picker .whyk button.cur { background: #4a7bb7; color: #fff; }
   .picker .why input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
   .picker .why .go { padding: 10px 12px; font-size: 15px; white-space: nowrap; }
   .adminCard { display: none; }
@@ -376,12 +379,12 @@ function renderMine(w) {
 
   // 결단 바꾸기: 이번 주를 볼 때만
   if (w.days.indexOf(w.today) >= 0) {
-    const late = offClosed(kstToday()) && !off; // 수요일부터는 휴무를 새로 못 정한다
     h += '<div class="goalrow">내 결단 <b>' + goalTxt + '</b><button class="chg" data-act="pick">결단 바꾸기</button></div>' +
          '<div class="picker" id="picker"><div class="chips">' +
-         [0, 3, 4, 5, 6, 7].map(n => '<button data-goal="' + n + '"' + (n === 0 ? ' class="offbtn' + (off ? ' cur' : '') + '"' + (late ? ' disabled' : '') : n === m.goal ? ' class="cur"' : '') + '>' + (n || '휴무') + '</button>').join('') +
-         '</div><div class="why" id="why"><input type="text" id="whyTxt" maxlength="100" placeholder="사유 (꼭 적어요 · 조장만 봐요)"><button class="go" data-act="off">휴무로 정하기</button></div>' +
-         '<p>횟수는 <b>이번 주부터 계속</b>, 휴무는 <b>이번 주만</b> 적용돼요.<br>휴무는 <b>화요일까지만</b> 정할 수 있어요. 사유는 조장만 봐요.</p></div>';
+         [0, 3, 4, 5, 6, 7].map(n => '<button data-goal="' + n + '"' + (n === 0 ? ' class="offbtn' + (off ? ' cur' : '') + '"' + '' : n === m.goal ? ' class="cur"' : '') + '>' + (n || '휴무') + '</button>').join('') +
+         '</div><div class="why" id="why"><div class="whyk">' + WHY_KINDS.map(k => '<button data-why="' + k + '">' + k + '</button>').join('') + '</div>' +
+         '<input type="text" id="whyTxt" maxlength="90" placeholder="기타 사유 (조장만 봐요)" hidden><button class="go" data-act="off">휴무로 정하기</button></div>' +
+         '<p>횟수는 <b>이번 주부터 계속</b>, 휴무는 <b>이번 주만</b> 적용돼요.<br>휴무는 사유를 골라야 정해져요. 사유는 조장만 봐요.</p></div>';
   }
 
   // 이번 기수 주차별 결과
@@ -504,9 +507,9 @@ $('go').onclick = () => {
     showMsg('err', '저장이 안 됐어요. 다시 눌러 주세요 (' + (e.message || e) + ')');
   }).finally(() => { $('go').disabled = false; });
 };
-// 휴무 마감: 그 주 화요일 끝(한국 시간). 수~토는 닫힘. 서버(hero_set_goal)도 같은 기준으로 막는다.
+// 휴무(2026-11-27 룡): 날짜 제한 없음(전에는 화요일까지만). 사유를 먼저 고른다 — 사역·질병·기타(기타는 글로 적음).
+const WHY_KINDS = ['사역', '질병', '기타'];
 const kstToday = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
-function offClosed(today) { return new Date(today + 'T00:00:00Z').getUTCDay() > 2; }
 function sundayOf(d) { return addDays(d, -new Date(d + 'T00:00:00Z').getUTCDay()); }
 function bumpHist(name, wk, n) {
   const x = ((state.hist && state.hist[name]) || []).find(h => h.wk === wk);
@@ -523,13 +526,21 @@ $('mine').onclick = ev => {
   if (!b) return;
   if (b.dataset.act === 'pick') return $('picker').classList.toggle('show');
   // 휴무 버튼은 사유 칸을 먼저 연다. 「휴무로 정하기」를 눌러야 저장한다.
-  if (b.dataset.goal === '0') { $('why').classList.toggle('show'); if ($('why').classList.contains('show')) $('whyTxt').focus(); return; }
+  if (b.dataset.goal === '0') { $('why').classList.toggle('show'); return; }
+  if (b.dataset.why) { // 사유 고르기: 기타만 글 칸이 열린다
+    $('why').querySelectorAll('[data-why]').forEach(x => x.classList.toggle('cur', x === b));
+    $('whyTxt').hidden = b.dataset.why !== '기타';
+    if (!$('whyTxt').hidden) $('whyTxt').focus();
+    return;
+  }
   const off = b.dataset.act === 'off';
   const goal = off ? 0 : +b.dataset.goal, name = $('name').value; // 0 = 휴무
   if ((!off && b.dataset.goal === undefined) || !name) return;
-  if (off && offClosed(kstToday())) return showMsg('err', '휴무는 화요일까지만 정할 수 있어요.');
-  const why = off ? $('whyTxt').value.trim().slice(0, 100) : '';
-  if (off && !why) { $('whyTxt').focus(); return showMsg('err', '휴무 사유를 적어 주세요.'); } // 사유는 꼭 (2026-11-22 룡)
+  const kind = off ? ($('why').querySelector('[data-why].cur') || {}).dataset : null;
+  if (off && !(kind && kind.why)) return showMsg('err', '휴무 사유를 골라 주세요. (사역 · 질병 · 기타)');
+  const etc = off && kind.why === '기타' ? $('whyTxt').value.trim().slice(0, 90) : '';
+  if (off && kind.why === '기타' && !etc) { $('whyTxt').focus(); return showMsg('err', '기타 사유를 적어 주세요.'); } // 사유는 꼭 (2026-11-22 룡)
+  const why = off ? (etc ? '기타 · ' + etc : kind.why) : '';
   // 화면 먼저 바꾸고 뒤에서 저장, 실패하면 되돌린다.
   const m = state.members.find(x => x.name === name);
   if (!m) return;

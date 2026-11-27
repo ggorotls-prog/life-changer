@@ -644,6 +644,10 @@ function loadRoom(weekStart) {
 // 공유 한 번 = 사진 한 장. 이미지는 미리 만들어 둔다(누른 뒤에 만들면 폰이 공유 창을 막는다).
 // 공유가 안 되는 PC에서만 이미지 창(꾹 눌러 저장). 카드 문구는 cards.js (날짜마다 한 장씩 돌아감). 2단계 카드는 따로 만들 예정.
 const seoulToday = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+// 2026-11-27 룡 「검수 내용이 업뎃이 안 되는 듯」: 화면을 어제부터 켜 두면 어제 받은 cards.js 문구가 그대로 남는다.
+// 날짜가 바뀐 뒤 화면으로 돌아오면 새로 불러 고친 문구를 받는다.
+const pageDay = seoulToday();
+document.addEventListener('visibilitychange', () => { if (!document.hidden && seoulToday() !== pageDay) location.reload(); });
 function todayCard(today) {
   const list = window.CARDS1 || [];
   if (!list.length) return null;
